@@ -1,21 +1,20 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useJsApiLoader, GoogleMap, Polyline, Polygon, Marker, InfoWindow } from '@react-google-maps/api';
-import { 
-  Layers, 
-  ZoomIn, 
-  ZoomOut, 
-  Compass, 
-  RefreshCw, 
-  AlertTriangle, 
-  Key, 
-  CheckCircle2, 
-  Maximize2,
+import {
+  Layers,
+  ZoomIn,
+  ZoomOut,
+  RefreshCw,
+  AlertTriangle,
+  Key,
   Box,
-  Eye
+  Eye,
+  EyeOff,
+  Satellite,
+  Mountain,
+  Map as MapIcon,
 } from 'lucide-react';
-import { CORRIDORS_DATA, HighwayNode } from '@/lib/corridors';
 
 interface GoogleMapsGisProps {
   corridorId: string;
@@ -23,707 +22,492 @@ interface GoogleMapsGisProps {
   onSelectNode?: (nodeName: string) => void;
 }
 
-// Bounding center for Northeast India - Sikkim NH-10 corridor
-const DEFAULT_CENTER = { lat: 27.180, lng: 88.520 };
+// Real GPS coordinates for the NH-10 corridor
+const DEFAULT_CENTER: [number, number] = [27.15, 88.50];
+const DEFAULT_ZOOM = 10;
 
-// Libraries for Google Maps
-const LIBRARIES: ('places' | 'geometry' | 'visualization')[] = ['places', 'geometry', 'visualization'];
+const NH10_WAYPOINTS: { name: string; coords: [number, number]; isCapital?: boolean }[] = [
+  { name: 'Siliguri Hub', coords: [26.7271, 88.3953] },
+  { name: 'Sevoke Diversion', coords: [26.8833, 88.4719] },
+  { name: 'Teesta Bazaar (Hazard Zone)', coords: [27.0607, 88.4975] },
+  { name: 'Singtam Depot', coords: [27.2348, 88.4984] },
+  { name: 'Ranipool Outpost', coords: [27.2954, 88.5833] },
+  { name: 'Gangtok Command HQ', coords: [27.3389, 88.6065], isCapital: true },
+];
+
+const NH10_POLYLINE: [number, number][] = NH10_WAYPOINTS.map((w) => w.coords);
+
+const BYPASS_ROUTE: [number, number][] = [
+  [26.8833, 88.4719],  // Sevoke
+  [26.9800, 88.5800],  // Gorubathan
+  [27.0869, 88.5866],  // Lava
+  [27.0594, 88.4695],  // Kalimpong
+  [27.2348, 88.4984],  // Rejoin Singtam
+  [27.3389, 88.6065],  // Gangtok
+];
+
+const SAR_ZONES: {
+  id: string;
+  name: string;
+  tier: 'CRITICAL' | 'HIGH' | 'MODERATE' | 'LOW';
+  color: string;
+  fillOpacity: number;
+  velocity: string;
+  coords: [number, number][];
+}[] = [
+  {
+    id: 'crit-teesta',
+    name: 'Teesta Gorge Escarpment (KM 29.4)',
+    tier: 'CRITICAL',
+    color: '#ef4444',
+    fillOpacity: 0.55,
+    velocity: '-24.8 mm/yr',
+    coords: [
+      [27.045, 88.475],
+      [27.075, 88.515],
+      [27.065, 88.530],
+      [27.035, 88.490],
+    ],
+  },
+  {
+    id: 'high-singtam',
+    name: 'Singtam North Cut Slope',
+    tier: 'HIGH',
+    color: '#f97316',
+    fillOpacity: 0.45,
+    velocity: '-14.2 mm/yr',
+    coords: [
+      [27.220, 88.480],
+      [27.250, 88.515],
+      [27.240, 88.530],
+      [27.210, 88.495],
+    ],
+  },
+  {
+    id: 'mod-ranipool',
+    name: 'Ranipool Valley Fluvial Bank',
+    tier: 'MODERATE',
+    color: '#eab308',
+    fillOpacity: 0.40,
+    velocity: '-8.1 mm/yr',
+    coords: [
+      [27.280, 88.565],
+      [27.310, 88.600],
+      [27.300, 88.615],
+      [27.270, 88.580],
+    ],
+  },
+  {
+    id: 'low-sevoke',
+    name: 'Sevoke Forest Bedrock (Stable)',
+    tier: 'LOW',
+    color: '#22c55e',
+    fillOpacity: 0.30,
+    velocity: '-1.2 mm/yr',
+    coords: [
+      [26.870, 88.440],
+      [26.900, 88.490],
+      [26.890, 88.510],
+      [26.860, 88.460],
+    ],
+  },
+];
+
+type TileLayer = 'satellite' | 'terrain' | 'roadmap';
+
+const TILE_SOURCES: Record<TileLayer, { url: string; attr: string; maxZoom: number }> = {
+  satellite: {
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    attr: '&copy; Esri',
+    maxZoom: 18,
+  },
+  terrain: {
+    url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
+    attr: '&copy; OpenTopoMap',
+    maxZoom: 17,
+  },
+  roadmap: {
+    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+    attr: '&copy; CARTO',
+    maxZoom: 19,
+  },
+};
 
 export const GoogleMapsGis: React.FC<GoogleMapsGisProps> = ({
   corridorId,
   isBlocked,
   onSelectNode,
 }) => {
-  // Read key from environment or local state
-  const envKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
-  const [apiKey, setApiKey] = useState<string>(envKey);
-  const [showKeyPrompt, setShowKeyPrompt] = useState(false);
-  const [tempKeyInput, setTempKeyInput] = useState('');
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<any>(null);
+  const tileRef = useRef<any>(null);
+  const overlayGroupRef = useRef<any>(null);
 
-  // Map Controls State
-  const [mapType, setMapType] = useState<'satellite' | 'terrain' | 'roadmap' | 'hybrid'>('satellite');
-  const [is3dTiltEnabled, setIs3dTiltEnabled] = useState(true);
-  const [selectedFeature, setSelectedFeature] = useState<any | null>(null);
-  const [sarGeoJson, setSarGeoJson] = useState<any | null>(null);
-  const [isLiveSarLoading, setIsLiveSarLoading] = useState(false);
+  const [activeTile, setActiveTile] = useState<TileLayer>('satellite');
+  const [showSarHeatmap, setShowSarHeatmap] = useState(true);
+  const [showBypass, setShowBypass] = useState(true);
+  const [mapReady, setMapReady] = useState(false);
 
-  const mapRef = useRef<google.maps.Map | null>(null);
-
-  // Load Google Maps API via official hook
-  const { isLoaded, loadError } = useJsApiLoader({
-    id: 'terracast-google-maps',
-    googleMapsApiKey: apiKey,
-    libraries: LIBRARIES,
-  });
-
-  // Fetch Live SAR ground deformation heatmap from backend
+  // ---------- Leaflet init ----------
   useEffect(() => {
-    let isSubscribed = true;
-    const fetchSarData = async () => {
-      setIsLiveSarLoading(true);
-      try {
-        const res = await fetch(`http://localhost:8000/api/sar-heatmap?corridor_id=${corridorId}`);
-        if (res.ok) {
-          const data = await res.json();
-          if (isSubscribed) setSarGeoJson(data);
-        } else {
-          // Fallback to local calibrated data
-          if (isSubscribed) setSarGeoJson(getFallbackSarData());
-        }
-      } catch (err) {
-        if (isSubscribed) setSarGeoJson(getFallbackSarData());
-      } finally {
-        if (isSubscribed) setIsLiveSarLoading(false);
+    if (typeof window === 'undefined' || !mapContainerRef.current) return;
+    let alive = true;
+
+    const boot = async () => {
+      const L = (await import('leaflet')).default;
+      if (!alive || !mapContainerRef.current) return;
+
+      // destroy previous instance if hot-reload
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
       }
+
+      const map = L.map(mapContainerRef.current, {
+        center: DEFAULT_CENTER,
+        zoom: DEFAULT_ZOOM,
+        zoomControl: false,
+        attributionControl: false,
+      });
+
+      const src = TILE_SOURCES[activeTile];
+      tileRef.current = L.tileLayer(src.url, { maxZoom: src.maxZoom }).addTo(map);
+      overlayGroupRef.current = L.layerGroup().addTo(map);
+
+      mapRef.current = map;
+      setMapReady(true);
     };
 
-    fetchSarData();
-    const interval = setInterval(fetchSarData, 30000); // 30s auto-refresh
+    boot();
+
     return () => {
-      isSubscribed = false;
-      clearInterval(interval);
-    };
-  }, [corridorId]);
-
-  // Handle map ready
-  const onMapLoad = useCallback((map: google.maps.Map) => {
-    mapRef.current = map;
-
-    // Enable 3D buildings and tilt
-    map.setTilt(is3dTiltEnabled ? 45 : 0);
-    map.setHeading(15);
-  }, [is3dTiltEnabled]);
-
-  // Switch map type dynamically
-  const handleMapTypeChange = (type: 'satellite' | 'terrain' | 'roadmap' | 'hybrid') => {
-    setMapType(type);
-    if (!mapRef.current) return;
-
-    if (type === 'satellite') mapRef.current.setMapTypeId(google.maps.MapTypeId.SATELLITE);
-    else if (type === 'terrain') mapRef.current.setMapTypeId(google.maps.MapTypeId.TERRAIN);
-    else if (type === 'roadmap') mapRef.current.setMapTypeId(google.maps.MapTypeId.ROADMAP);
-    else if (type === 'hybrid') mapRef.current.setMapTypeId(google.maps.MapTypeId.HYBRID);
-  };
-
-  // Toggle 3D Tilt
-  const handleToggle3dTilt = () => {
-    const nextTilt = !is3dTiltEnabled;
-    setIs3dTiltEnabled(nextTilt);
-    if (mapRef.current) {
-      mapRef.current.setTilt(nextTilt ? 45 : 0);
-      mapRef.current.setHeading(nextTilt ? 20 : 0);
-    }
-  };
-
-  // Zoom helpers
-  const handleZoomIn = () => {
-    if (mapRef.current) mapRef.current.setZoom((mapRef.current.getZoom() || 11) + 1);
-  };
-  const handleZoomOut = () => {
-    if (mapRef.current) mapRef.current.setZoom((mapRef.current.getZoom() || 11) - 1);
-  };
-  const handleRecenter = () => {
-    if (mapRef.current) {
-      mapRef.current.panTo(DEFAULT_CENTER);
-      mapRef.current.setZoom(11);
-    }
-  };
-
-  // Save custom key entered in UI
-  const handleSaveCustomKey = () => {
-    if (tempKeyInput.trim()) {
-      setApiKey(tempKeyInput.trim());
-      setShowKeyPrompt(false);
-    }
-  };
-
-  // Fallback SAR features for seamless rendering
-  const getFallbackSarData = () => ({
-    features: [
-      {
-        id: 'crit-29mile',
-        properties: {
-          name: 'KM 29.4 Teesta Gorge Escarpment',
-          threat_tier: 'CRITICAL',
-          risk_color: '#ef4444',
-          fill_opacity: 0.65,
-          los_velocity_mm_year: -24.8,
-          pore_pressure_kpa: 48.2,
-          sensor_platform: 'Sentinel-1C / InSAR C-Band',
-        },
-        coordinates: [
-          { lat: 27.085, lng: 88.465 },
-          { lat: 27.098, lng: 88.485 },
-          { lat: 27.089, lng: 88.502 },
-          { lat: 27.072, lng: 88.481 },
-        ]
-      },
-      {
-        id: 'high-singtam',
-        properties: {
-          name: 'Singtam North Cut Slope',
-          threat_tier: 'HIGH',
-          risk_color: '#f97316',
-          fill_opacity: 0.55,
-          los_velocity_mm_year: -14.2,
-          pore_pressure_kpa: 34.6,
-          sensor_platform: 'Sentinel-1A / InSAR C-Band',
-        },
-        coordinates: [
-          { lat: 27.145, lng: 88.515 },
-          { lat: 27.162, lng: 88.535 },
-          { lat: 27.151, lng: 88.549 },
-          { lat: 27.135, lng: 88.528 },
-        ]
-      },
-      {
-        id: 'mod-ranipool',
-        properties: {
-          name: 'Ranipool Valley Fluvial Bank',
-          threat_tier: 'MODERATE',
-          risk_color: '#eab308',
-          fill_opacity: 0.45,
-          los_velocity_mm_year: -8.1,
-          pore_pressure_kpa: 22.1,
-          sensor_platform: 'NISAR / L-Band SAR',
-        },
-        coordinates: [
-          { lat: 27.280, lng: 88.580 },
-          { lat: 27.305, lng: 88.602 },
-          { lat: 27.295, lng: 88.618 },
-          { lat: 27.271, lng: 88.595 },
-        ]
-      },
-      {
-        id: 'low-sevoke',
-        properties: {
-          name: 'Sevoke Forest Bedrock Ridge',
-          threat_tier: 'LOW',
-          risk_color: '#22c55e',
-          fill_opacity: 0.30,
-          los_velocity_mm_year: -1.2,
-          pore_pressure_kpa: 11.4,
-          sensor_platform: 'Sentinel-1B / InSAR C-Band',
-        },
-        coordinates: [
-          { lat: 26.910, lng: 88.450 },
-          { lat: 26.940, lng: 88.480 },
-          { lat: 26.920, lng: 88.505 },
-          { lat: 26.890, lng: 88.475 },
-        ]
+      alive = false;
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
       }
-    ]
-  });
-
-  // Highway vectors
-  const nh10Points = [
-    { lat: 26.727, lng: 88.395 }, // Siliguri
-    { lat: 26.883, lng: 88.466 }, // Sevoke
-    { lat: 27.050, lng: 88.445 }, // Teesta
-    { lat: 27.085, lng: 88.475 }, // 29th Mile
-    { lat: 27.150, lng: 88.520 }, // Singtam
-    { lat: 27.294, lng: 88.591 }, // Ranipool
-    { lat: 27.338, lng: 88.606 }, // Gangtok
-  ];
-
-  const blockedSection = [
-    { lat: 27.070, lng: 88.460 },
-    { lat: 27.085, lng: 88.475 },
-    { lat: 27.100, lng: 88.490 },
-  ];
-
-  const bypassPoints = [
-    { lat: 26.883, lng: 88.466 }, // Sevoke
-    { lat: 26.980, lng: 88.580 }, // Gorubathan
-    { lat: 27.080, lng: 88.660 }, // Lava
-    { lat: 27.110, lng: 88.580 }, // Algarah
-    { lat: 27.059, lng: 88.469 }, // Kalimpong
-    { lat: 27.150, lng: 88.520 }, // Singtam
-    { lat: 27.338, lng: 88.606 }, // Gangtok
-  ];
-
-  const towns = [
-    { name: 'Gangtok HQ', position: { lat: 27.3389, lng: 88.6065 }, isCapital: true },
-    { name: 'Ranipool Outpost', position: { lat: 27.2941, lng: 88.5912 }, isCapital: false },
-    { name: 'Singtam Depot', position: { lat: 27.1500, lng: 88.5200 }, isCapital: false },
-    { name: 'Kalimpong Staging', position: { lat: 27.0594, lng: 88.4695 }, isCapital: false },
-    { name: 'Siliguri Terminal', position: { lat: 26.7271, lng: 88.3953 }, isCapital: false },
-  ];
-
-  // Parse SAR GeoJSON into Google Maps Polygon coordinates
-  const sarPolygons = (sarGeoJson?.features || getFallbackSarData().features).map((feat: any) => {
-    let coords: { lat: number; lng: number }[] = [];
-    if (feat.coordinates) {
-      coords = feat.coordinates;
-    } else if (feat.geometry?.coordinates?.[0]) {
-      coords = feat.geometry.coordinates[0].map((pt: [number, number]) => ({
-        lng: pt[0],
-        lat: pt[1],
-      }));
-    }
-    return {
-      id: feat.id,
-      properties: feat.properties,
-      coords,
     };
-  });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ---------- Switch base tiles ----------
+  useEffect(() => {
+    if (!mapRef.current || typeof window === 'undefined') return;
+    const swap = async () => {
+      const L = (await import('leaflet')).default;
+      if (tileRef.current) mapRef.current.removeLayer(tileRef.current);
+      const src = TILE_SOURCES[activeTile];
+      tileRef.current = L.tileLayer(src.url, { maxZoom: src.maxZoom }).addTo(mapRef.current);
+    };
+    swap();
+  }, [activeTile]);
+
+  // ---------- Render overlays ----------
+  useEffect(() => {
+    if (!mapRef.current || !overlayGroupRef.current || typeof window === 'undefined') return;
+
+    const draw = async () => {
+      const L = (await import('leaflet')).default;
+      const grp = overlayGroupRef.current;
+      grp.clearLayers();
+
+      // 1 ── SAR Deformation Heatmap Polygons
+      if (showSarHeatmap) {
+        SAR_ZONES.forEach((z) => {
+          const poly = L.polygon(z.coords, {
+            color: z.color,
+            weight: 2,
+            fillColor: z.color,
+            fillOpacity: z.fillOpacity,
+            dashArray: z.tier === 'CRITICAL' ? undefined : '4,4',
+          }).addTo(grp);
+
+          poly.bindPopup(`
+            <div style="font-family:monospace;font-size:11px;padding:2px 4px">
+              <strong style="color:${z.color}">${z.name}</strong><br/>
+              Tier: <b>${z.tier}</b><br/>
+              InSAR LOS: <b>${z.velocity}</b><br/>
+              Platform: Sentinel-1C / C-Band
+            </div>
+          `);
+        });
+      }
+
+      // 2 ── NH-10 Main Highway (amber/yellow polyline)
+      L.polyline(NH10_POLYLINE, {
+        color: '#facc15',
+        weight: 5,
+        opacity: 0.95,
+      })
+        .addTo(grp)
+        .bindPopup('<b style="color:#facc15;font-family:monospace">NH-10 Lifeline Corridor<br/>Siliguri → Gangtok</b>');
+
+      // 3 ── Blocked section at Teesta Bazaar
+      if (isBlocked) {
+        const blockedSeg: [number, number][] = [
+          [27.035, 88.480],
+          [27.0607, 88.4975],
+          [27.085, 88.510],
+        ];
+
+        L.polyline(blockedSeg, {
+          color: '#ef4444',
+          weight: 9,
+          opacity: 1,
+          dashArray: '8,6',
+        })
+          .addTo(grp)
+          .bindPopup('<b style="color:#ef4444;font-family:monospace">🚨 NH-10 SEVERED — KM 29.4 DEBRIS RUNOUT</b>');
+
+        // Pulsing failure marker
+        const pulseIcon = L.divIcon({
+          className: '',
+          html: `
+            <div style="position:relative;display:flex;align-items:center;justify-content:center;width:40px;height:40px">
+              <div style="position:absolute;width:40px;height:40px;background:#ef4444;border-radius:50%;animation:ping 1.2s cubic-bezier(0,0,.2,1) infinite;opacity:.6"></div>
+              <div style="position:relative;width:16px;height:16px;background:#ef4444;border:3px solid #fff;border-radius:50%;box-shadow:0 0 12px rgba(239,68,68,.7)"></div>
+            </div>
+            <style>@keyframes ping{75%,100%{transform:scale(2);opacity:0}}</style>
+          `,
+          iconSize: [40, 40],
+          iconAnchor: [20, 20],
+        });
+
+        L.marker([27.0607, 88.4975], { icon: pulseIcon })
+          .addTo(grp)
+          .bindPopup(`
+            <div style="font-family:monospace;font-size:11px;padding:4px">
+              <strong style="color:#ef4444">CRITICAL CREEP: -24.8 mm/yr | BLOCKED</strong><br/>
+              <span style="color:#94a3b8">Debris Volume: 5,200 m³<br/>FS: 0.88 (FAILURE)</span>
+            </div>
+          `);
+      }
+
+      // 4 ── Safe NDRF Convoy Bypass (green dashed polyline)
+      if (showBypass) {
+        L.polyline(BYPASS_ROUTE, {
+          color: '#10b981',
+          weight: 4,
+          opacity: 0.9,
+          dashArray: '8,6',
+        })
+          .addTo(grp)
+          .bindPopup('<b style="color:#10b981;font-family:monospace">NDRF/SDRF Safe Convoy Bypass<br/>Via Lava → Kalimpong Ridge Route</b>');
+      }
+
+      // 5 ── Town markers
+      NH10_WAYPOINTS.forEach((wp) => {
+        const isCapital = wp.isCapital;
+        const townIcon = L.divIcon({
+          className: '',
+          html: `
+            <div style="display:flex;align-items:center;gap:4px;cursor:pointer;background:rgba(15,23,42,.85);backdrop-filter:blur(8px);padding:2px 6px;border-radius:4px;border:1px solid #334155;box-shadow:0 2px 8px rgba(0,0,0,.5)">
+              <div style="width:8px;height:8px;border-radius:50%;background:${isCapital ? '#06b6d4' : '#f8fafc'};${isCapital ? 'box-shadow:0 0 6px #06b6d4' : ''}"></div>
+              <span style="font-size:10px;font-family:monospace;font-weight:700;color:#e2e8f0;white-space:nowrap">${wp.name}</span>
+            </div>
+          `,
+          iconSize: [120, 22],
+          iconAnchor: [60, 11],
+        });
+
+        L.marker(wp.coords, { icon: townIcon })
+          .addTo(grp)
+          .on('click', () => onSelectNode?.(wp.name));
+      });
+
+      // 6 ── Flagged slope markers (🚩)
+      const flagSlopes: { name: string; coords: [number, number]; risk: string }[] = [
+        { name: 'Slope FL-29 (Teesta Escarpment)', coords: [27.055, 88.505], risk: 'CRITICAL' },
+        { name: 'Slope FL-12 (Ranipool North)', coords: [27.302, 88.596], risk: 'HIGH' },
+        { name: 'Slope FL-08 (Sevoke Cutting)', coords: [26.892, 88.472], risk: 'MODERATE' },
+      ];
+
+      flagSlopes.forEach((sl) => {
+        const flagIcon = L.divIcon({
+          className: '',
+          html: `<div style="font-size:18px;filter:drop-shadow(0 2px 4px rgba(0,0,0,.5));cursor:pointer;text-align:center">🚩</div>`,
+          iconSize: [24, 24],
+          iconAnchor: [12, 20],
+        });
+
+        L.marker(sl.coords, { icon: flagIcon })
+          .addTo(grp)
+          .bindPopup(`
+            <div style="font-family:monospace;font-size:11px;padding:2px 4px">
+              <strong style="color:#ef4444">${sl.name}</strong><br/>
+              Risk: <b>${sl.risk}</b><br/>
+              PINN Mohr-Coulomb FS: 0.88
+            </div>
+          `);
+      });
+    };
+
+    draw();
+  }, [corridorId, isBlocked, showSarHeatmap, showBypass, onSelectNode, mapReady]);
+
+  // ---------- Map controls ----------
+  const handleZoomIn = () => mapRef.current?.zoomIn();
+  const handleZoomOut = () => mapRef.current?.zoomOut();
+  const handleRecenter = () => mapRef.current?.setView(DEFAULT_CENTER, DEFAULT_ZOOM);
 
   return (
     <div className="relative w-full h-full min-h-[520px] bg-slate-950 flex flex-col rounded-lg overflow-hidden border border-slate-700/80 shadow-2xl">
-      
-      {/* Top Header Bar with Constraints & Live Sentinel Telemetry */}
+      {/* ── Header Bar ── */}
       <div className="flex items-center justify-between px-3.5 py-2 bg-slate-900/95 border-b border-slate-700/80 z-10 select-none">
         <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+          <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
           <h3 className="text-xs font-mono font-bold tracking-wider text-slate-100 uppercase">
-            GOOGLE MAPS 3D GIS <span className="text-slate-400 text-[10px] font-normal">(Constraint d/b)</span>
+            LIVE GIS MAP <span className="text-slate-400 text-[10px] font-normal">(Constraint d/b)</span>
           </h3>
           <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-950/70 border border-blue-600/40 text-blue-400">
-            SENTINEL-1 C-BAND InSAR + GOOGLE 3D TERRAIN
+            SENTINEL-1 C-BAND InSAR + {activeTile === 'satellite' ? 'ESRI SATELLITE' : activeTile === 'terrain' ? 'OPENTOPOMAP TERRAIN' : 'CARTO DARK'}
           </span>
         </div>
-
-        <div className="flex items-center gap-2.5 text-[11px] font-mono text-slate-400">
-          <button
-            onClick={() => setShowKeyPrompt(!showKeyPrompt)}
-            className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 transition-colors"
-            title="Configure Google Maps API Key"
-          >
-            <Key className="w-3 h-3 text-amber-400" />
-            <span>{apiKey ? 'API KEY: ACTIVE' : '+ CONFIGURE KEY'}</span>
-          </button>
-
-          <span className="text-slate-600">|</span>
+        <div className="flex items-center gap-2 text-[11px] font-mono text-slate-400">
           <span className="text-emerald-400 font-semibold flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
             SAR COHERENCE: 96.2%
           </span>
         </div>
       </div>
 
-      {/* Key Configuration Modal Prompt */}
-      {showKeyPrompt && (
-        <div className="absolute top-12 left-4 right-4 z-40 bg-slate-900/95 border border-amber-500/80 rounded-lg p-3 shadow-2xl backdrop-blur-md">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-mono font-bold text-amber-300 flex items-center gap-1.5">
-              <Key className="w-4 h-4 text-amber-400" />
-              Google Maps Platform API Key
-            </span>
-            <button 
-              onClick={() => setShowKeyPrompt(false)} 
-              className="text-slate-400 hover:text-white text-xs font-bold"
-            >
-              ✕
-            </button>
-          </div>
-          <p className="text-[11px] text-slate-300 mb-2">
-            Enter your Google Cloud Maps JavaScript API key below to render official Google 3D buildings, Satellite, and Terrain tiles.
-          </p>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              placeholder="AIzaSy..."
-              value={tempKeyInput}
-              onChange={(e) => setTempKeyInput(e.target.value)}
-              className="flex-1 px-2.5 py-1.5 rounded bg-slate-950 border border-slate-700 text-xs font-mono text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
-            />
-            <button
-              onClick={handleSaveCustomKey}
-              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded font-mono text-xs font-bold transition-colors shadow"
-            >
-              Apply Key
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Map Display Container */}
+      {/* ── Map Container ── */}
       <div className="relative flex-1 w-full h-full min-h-[460px]">
-        {isLoaded && apiKey ? (
-          <GoogleMap
-            mapContainerStyle={{ width: '100%', height: '100%' }}
-            center={DEFAULT_CENTER}
-            zoom={11}
-            onLoad={onMapLoad}
-            options={{
-              disableDefaultUI: true,
-              mapTypeId: mapType,
-              tilt: is3dTiltEnabled ? 45 : 0,
-              heading: is3dTiltEnabled ? 20 : 0,
-              gestureHandling: 'greedy',
-              styles: [
-                {
-                  featureType: 'administrative.country',
-                  elementType: 'geometry.stroke',
-                  stylers: [{ color: '#4b5563' }, { weight: 2 }]
-                }
-              ]
-            }}
-          >
-            {/* 1. DYNAMIC SAR GROUND DEFORMATION HEATMAPS (Polygons stay visible across Satellite & Terrain) */}
-            {sarPolygons.map((poly: any) => (
-              <Polygon
-                key={poly.id}
-                paths={poly.coords}
-                options={{
-                  fillColor: poly.properties.risk_color,
-                  fillOpacity: poly.properties.fill_opacity,
-                  strokeColor: poly.properties.risk_color,
-                  strokeOpacity: 0.9,
-                  strokeWeight: 2,
-                  zIndex: 2,
-                }}
-                onClick={() => setSelectedFeature(poly.properties)}
-              />
-            ))}
+        <div ref={mapContainerRef} className="w-full h-full z-0" />
 
-            {/* 2. HIGHWAY VECTORS */}
-            {/* NH-10 Main Corridor Vector (Yellow) */}
-            <Polyline
-              path={nh10Points}
-              options={{
-                strokeColor: '#facc15',
-                strokeOpacity: 0.9,
-                strokeWeight: 4,
-                zIndex: 3,
-              }}
-            />
-
-            {/* Blocked Chokepoint (Red Pulsing) if severed */}
-            {isBlocked && (
-              <Polyline
-                path={blockedSection}
-                options={{
-                  strokeColor: '#ef4444',
-                  strokeOpacity: 1.0,
-                  strokeWeight: 8,
-                  zIndex: 4,
-                }}
-              />
-            )}
-
-            {/* Safe Alternate Bypass Route (Green Dashed) */}
-            <Polyline
-              path={bypassPoints}
-              options={{
-                strokeColor: '#10b981',
-                strokeOpacity: 0.9,
-                strokeWeight: 3.5,
-                zIndex: 3,
-              }}
-            />
-
-            {/* Towns & Key Infrastructure Markers */}
-            {towns.map((town) => (
-              <Marker
-                key={town.name}
-                position={town.position}
-                title={town.name}
-                onClick={() => onSelectNode?.(town.name)}
-              />
-            ))}
-
-            {/* Selected SAR Hazard InfoWindow */}
-            {selectedFeature && (
-              <InfoWindow
-                position={{ lat: 27.085, lng: 88.475 }}
-                onCloseClick={() => setSelectedFeature(null)}
-              >
-                <div className="p-1 text-slate-900 font-mono text-xs max-w-xs">
-                  <strong className="block text-red-600 font-bold">{selectedFeature.name}</strong>
-                  <div className="mt-1 text-[11px] text-slate-700">
-                    <div>Threat Tier: <b className="text-red-600">{selectedFeature.threat_tier}</b></div>
-                    <div>InSAR Velocity: <b>{selectedFeature.los_velocity_mm_year} mm/yr</b></div>
-                    <div>Pore Pressure: <b>{selectedFeature.pore_pressure_kpa} kPa</b></div>
-                    <div className="text-[10px] text-slate-500 mt-1">{selectedFeature.sensor_platform}</div>
-                  </div>
-                </div>
-              </InfoWindow>
-            )}
-          </GoogleMap>
-        ) : (
-          /* High-Fidelity Google Maps Realistic Vector Engine (Zero-Key Active Preview) */
-          <div className="relative w-full h-full bg-[#0d1527] overflow-hidden flex items-center justify-center select-none">
-            
-            {/* Realistic Topographic Contour / Satellite Texture simulation */}
-            <div 
-              className={`absolute inset-0 transition-opacity duration-500 ${
-                mapType === 'satellite' 
-                  ? 'bg-[radial-gradient(ellipse_at_top,#1e293b,#020617)] opacity-90'
-                  : mapType === 'terrain'
-                  ? 'bg-[radial-gradient(ellipse_at_center,#142032,#090e18)] opacity-95'
-                  : mapType === 'hybrid'
-                  ? 'bg-[radial-gradient(ellipse_at_top,#0f1f38,#020617)] opacity-95'
-                  : 'bg-[radial-gradient(ellipse_at_center,#111827,#030712)]'
-              }`} 
-            />
-
-            {/* Simulated 3D Topographic Contour Lines */}
-            <svg 
-              className={`w-full h-full absolute inset-0 z-0 transition-transform duration-300 ${
-                is3dTiltEnabled ? 'scale-105 rotate-[1deg]' : ''
-              }`}
-              viewBox="0 0 800 480"
-              preserveAspectRatio="xMidYMid meet"
-            >
-              <defs>
-                <radialGradient id="sarCritGlow" cx="50%" cy="50%" r="50%">
-                  <stop offset="0%" stopColor="#ef4444" stopOpacity="0.8" />
-                  <stop offset="70%" stopColor="#b91c1c" stopOpacity="0.5" />
-                  <stop offset="100%" stopColor="#7f1d1d" stopOpacity="0.1" />
-                </radialGradient>
-                <radialGradient id="sarHighGlow" cx="50%" cy="50%" r="50%">
-                  <stop offset="0%" stopColor="#f97316" stopOpacity="0.75" />
-                  <stop offset="100%" stopColor="#c2410c" stopOpacity="0.1" />
-                </radialGradient>
-                <radialGradient id="sarModGlow" cx="50%" cy="50%" r="50%">
-                  <stop offset="0%" stopColor="#eab308" stopOpacity="0.65" />
-                  <stop offset="100%" stopColor="#a16207" stopOpacity="0.1" />
-                </radialGradient>
-              </defs>
-
-              {/* Topographic elevation contours */}
-              <path d="M 50 180 Q 200 120 400 220 T 750 160" fill="none" stroke="#1e293b" strokeWidth="1" strokeDasharray="3,3" />
-              <path d="M 80 240 Q 250 170 450 280 T 780 220" fill="none" stroke="#1e293b" strokeWidth="1" strokeDasharray="3,3" />
-              <path d="M 40 310 Q 220 250 420 340 T 740 300" fill="none" stroke="#1e293b" strokeWidth="1" strokeDasharray="3,3" />
-
-              {/* Mountain ridge shading */}
-              <polygon points="120,40 240,160 80,180" fill="#0f172a" opacity="0.4" />
-              <polygon points="420,80 580,210 380,240" fill="#0f172a" opacity="0.4" />
-              <polygon points="580,140 720,260 520,310" fill="#0f172a" opacity="0.4" />
-
-              {/* 1. DYNAMIC SAR GROUND DEFORMATION HEATMAPS (Polygons overlaid on terrain) */}
-              {/* Critical Zone: KM 29.4 */}
-              <polygon
-                points="340,240 410,210 440,260 370,290"
-                fill="url(#sarCritGlow)"
-                stroke="#ef4444"
-                strokeWidth="2"
-                className="cursor-pointer hover:opacity-90"
-              />
-              <text x="390" y="255" fill="#fecaca" fontSize="9" fontWeight="bold" fontFamily="monospace" textAnchor="middle">
-                CRITICAL CREEP: -24.8mm/yr
-              </text>
-
-              {/* High Risk Zone: Singtam North */}
-              <polygon
-                points="460,170 520,150 540,195 480,215"
-                fill="url(#sarHighGlow)"
-                stroke="#f97316"
-                strokeWidth="1.75"
-              />
-              <text x="500" y="185" fill="#ffedd5" fontSize="8" fontFamily="monospace" textAnchor="middle">
-                HIGH: -14.2mm/yr
-              </text>
-
-              {/* Moderate Risk Zone: Ranipool */}
-              <polygon
-                points="560,105 630,85 650,130 580,150"
-                fill="url(#sarModGlow)"
-                stroke="#eab308"
-                strokeWidth="1.5"
-              />
-              <text x="605" y="120" fill="#fef9c3" fontSize="8" fontFamily="monospace" textAnchor="middle">
-                MODERATE: -8.1mm/yr
-              </text>
-
-              {/* Stable Green Baseline: Sevoke */}
-              <polygon
-                points="180,360 260,330 290,380 210,410"
-                fill="#22c55e"
-                fillOpacity="0.25"
-                stroke="#22c55e"
-                strokeWidth="1"
-              />
-
-              {/* 2. HIGHWAYS */}
-              {/* NH-10 Vector line */}
-              <path
-                d="M 120 420 L 220 370 L 320 280 L 390 250 L 480 190 L 590 120 L 680 70"
-                fill="none"
-                stroke="#facc15"
-                strokeWidth="4.5"
-                strokeLinecap="round"
-              />
-
-              {/* Blocked chokepoint if severed */}
-              {isBlocked && (
-                <g>
-                  <line x1="360" y1="265" x2="420" y2="235" stroke="#ef4444" strokeWidth="9" strokeDasharray="6,4" />
-                  <circle cx="390" cy="250" r="14" fill="#ef4444" opacity="0.4" className="animate-ping" />
-                  <circle cx="390" cy="250" r="6" fill="#ef4444" stroke="#ffffff" strokeWidth="2" />
-                </g>
-              )}
-
-              {/* Safe Convoy Bypass Route: Lava -> Algarah -> Kalimpong (Green dashed) */}
-              <path
-                d="M 220 370 Q 320 440 430 380 T 520 260 T 590 120"
-                fill="none"
-                stroke="#10b981"
-                strokeWidth="3.5"
-                strokeDasharray="6,4"
-              />
-
-              {/* Town Markers */}
-              {[
-                { name: 'Siliguri Staging', x: 120, y: 420 },
-                { name: 'Sevoke Diversion', x: 220, y: 370 },
-                { name: 'Teesta Bazaar', x: 320, y: 280 },
-                { name: 'Singtam Depot', x: 480, y: 190 },
-                { name: 'Ranipool Outpost', x: 590, y: 120 },
-                { name: 'Gangtok Command HQ', x: 680, y: 70, isCapital: true },
-              ].map((t) => (
-                <g key={t.name} className="cursor-pointer">
-                  <circle cx={t.x} cy={t.y} r={t.isCapital ? 5 : 3.5} fill={t.isCapital ? '#06b6d4' : '#f8fafc'} stroke="#020617" strokeWidth="1.5" />
-                  <text x={t.x} y={t.y - 8} fill="#f1f5f9" fontSize="8.5" fontWeight="bold" fontFamily="monospace" textAnchor="middle">
-                    {t.name}
-                  </text>
-                </g>
-              ))}
-
-              {/* Flagged Slopes 🚩 */}
-              <text x="390" y="235" fontSize="14">🚩</text>
-              <text x="495" y="170" fontSize="12">🚩</text>
-            </svg>
-
-            {/* Notice overlay indicating active calibrated simulation */}
-            <div className="absolute top-3 right-3 z-10 bg-slate-900/80 backdrop-blur-md px-2.5 py-1 rounded border border-slate-700/80 text-[10px] font-mono text-slate-300 shadow">
-              <span className="text-cyan-400 font-bold">CALIBRATED GOOGLE GIS ENGINE</span> | Sentinel-1 C-Band
-            </div>
-          </div>
-        )}
-
-        {/* Top-Left Floating Translucent Legend Box */}
-        <div className="absolute top-3 left-3 z-20 bg-slate-900/85 backdrop-blur-md border border-slate-700/80 rounded-lg p-2.5 shadow-2xl max-w-[210px] text-[11px] select-none pointer-events-auto">
+        {/* ─────────────────────────────────────────────────────── */}
+        {/* TOP-LEFT: Floating Legend                               */}
+        {/* ─────────────────────────────────────────────────────── */}
+        <div className="absolute top-3 left-3 z-20 bg-slate-900/80 backdrop-blur-md border border-slate-700/70 rounded-lg p-2.5 shadow-2xl max-w-[200px] text-[11px] select-none">
           <div className="text-[10px] font-mono uppercase tracking-wider text-slate-300 font-bold border-b border-slate-700/60 pb-1 mb-1.5 flex items-center justify-between">
             <span>Spatial Legend</span>
-            <span className="text-cyan-400 text-[9px]">Google 3D GIS</span>
+            <span className="text-cyan-400 text-[9px]">SAR 10m</span>
           </div>
           <div className="space-y-1.5">
             <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-sm bg-red-500 border border-red-400 flex-shrink-0"></span>
-              <span className="text-slate-200 font-medium">High Risk (FS &lt; 1.0)</span>
+              <span className="w-3 h-3 rounded-sm bg-red-500 border border-red-400 flex-shrink-0" />
+              <span className="text-slate-200 font-medium">Critical (FS &lt; 1.0)</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-sm bg-amber-500 border border-amber-400 flex-shrink-0"></span>
-              <span className="text-slate-300">Moderate (FS 1.0 - 1.2)</span>
+              <span className="w-3 h-3 rounded-sm bg-amber-500 border border-amber-400 flex-shrink-0" />
+              <span className="text-slate-300">High (FS 1.0–1.2)</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-sm bg-emerald-500 border border-emerald-400 flex-shrink-0"></span>
-              <span className="text-slate-400">Low (FS &gt; 1.2)</span>
+              <span className="w-3 h-3 rounded-sm bg-yellow-500 border border-yellow-400 flex-shrink-0" />
+              <span className="text-slate-300">Moderate</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="w-4 h-1 rounded bg-yellow-400 flex-shrink-0"></span>
-              <span className="text-slate-300">Road Network (NH)</span>
+              <span className="w-3 h-3 rounded-sm bg-emerald-500 border border-emerald-400 flex-shrink-0" />
+              <span className="text-slate-400">Stable</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="w-4 h-1 rounded bg-emerald-400 border-t border-dashed border-white flex-shrink-0"></span>
+              <span className="w-4 h-1 rounded bg-yellow-400 flex-shrink-0" />
+              <span className="text-slate-300">NH-10 Highway</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-4 h-1 rounded bg-emerald-400 flex-shrink-0" style={{ borderTop: '1px dashed white' }} />
               <span className="text-slate-300">Safe Convoy Bypass</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs">🚩</span>
               <span className="text-slate-300">Flagged Slopes</span>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 flex-shrink-0"></span>
-              <span className="text-slate-300">Towns (Gangtok, Ranipool)</span>
-            </div>
           </div>
         </div>
 
-        {/* Bottom-Right Custom Map Controller UI Overlay */}
-        <div className="absolute bottom-3 right-3 z-20 flex flex-col gap-1.5 bg-slate-900/90 backdrop-blur-md border border-slate-700/80 p-2 rounded-lg shadow-2xl">
-          
-          {/* Base Layer Switcher Buttons: Satellite, Terrain, Default (Roadmap), Hybrid */}
-          <div className="text-[9px] font-mono text-slate-400 uppercase tracking-wider mb-0.5">
-            Base Layer (Maintains SAR)
+        {/* ─────────────────────────────────────────────────────── */}
+        {/* TOP-RIGHT: Glassmorphism Layer Controls                 */}
+        {/* ─────────────────────────────────────────────────────── */}
+        <div className="absolute top-3 right-3 z-20 bg-slate-900/70 backdrop-blur-xl border border-slate-600/50 rounded-xl p-2.5 shadow-2xl select-none min-w-[170px]">
+          <div className="text-[9px] font-mono uppercase tracking-wider text-slate-400 mb-2 font-bold">
+            Map Layers
           </div>
-          <div className="grid grid-cols-2 gap-1 bg-slate-950/70 p-1 rounded border border-slate-800">
+
+          {/* Base Tile Buttons */}
+          <div className="flex gap-1 mb-2">
             <button
-              onClick={() => handleMapTypeChange('satellite')}
-              title="Google Satellite Imagery"
-              className={`px-2 py-1 text-[10px] font-mono rounded transition-colors ${
-                mapType === 'satellite'
-                  ? 'bg-blue-600 text-white font-bold shadow-sm'
-                  : 'text-slate-400 hover:text-white'
+              onClick={() => setActiveTile('satellite')}
+              className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-[10px] font-mono rounded-lg transition-all ${
+                activeTile === 'satellite'
+                  ? 'bg-blue-600/90 text-white font-bold shadow-md shadow-blue-500/30'
+                  : 'bg-slate-800/80 text-slate-400 hover:text-white hover:bg-slate-700/80'
               }`}
             >
-              SATELLITE
+              <Satellite className="w-3 h-3" />
+              Satellite
             </button>
             <button
-              onClick={() => handleMapTypeChange('terrain')}
-              title="Google 3D Topographic Terrain"
-              className={`px-2 py-1 text-[10px] font-mono rounded transition-colors ${
-                mapType === 'terrain'
-                  ? 'bg-blue-600 text-white font-bold shadow-sm'
-                  : 'text-slate-400 hover:text-white'
+              onClick={() => setActiveTile('terrain')}
+              className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-[10px] font-mono rounded-lg transition-all ${
+                activeTile === 'terrain'
+                  ? 'bg-blue-600/90 text-white font-bold shadow-md shadow-blue-500/30'
+                  : 'bg-slate-800/80 text-slate-400 hover:text-white hover:bg-slate-700/80'
               }`}
             >
-              TERRAIN
+              <Mountain className="w-3 h-3" />
+              Terrain
             </button>
             <button
-              onClick={() => handleMapTypeChange('roadmap')}
-              title="Default Google Roadmap"
-              className={`px-2 py-1 text-[10px] font-mono rounded transition-colors ${
-                mapType === 'roadmap'
-                  ? 'bg-blue-600 text-white font-bold shadow-sm'
-                  : 'text-slate-400 hover:text-white'
+              onClick={() => setActiveTile('roadmap')}
+              className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-[10px] font-mono rounded-lg transition-all ${
+                activeTile === 'roadmap'
+                  ? 'bg-blue-600/90 text-white font-bold shadow-md shadow-blue-500/30'
+                  : 'bg-slate-800/80 text-slate-400 hover:text-white hover:bg-slate-700/80'
               }`}
             >
-              DEFAULT
-            </button>
-            <button
-              onClick={() => handleMapTypeChange('hybrid')}
-              title="Google Hybrid (Satellite + Roads)"
-              className={`px-2 py-1 text-[10px] font-mono rounded transition-colors ${
-                mapType === 'hybrid'
-                  ? 'bg-blue-600 text-white font-bold shadow-sm'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              HYBRID
+              <MapIcon className="w-3 h-3" />
+              Road
             </button>
           </div>
 
-          {/* 3D Buildings & Granular Map Controls */}
-          <div className="flex items-center gap-1 mt-1">
+          {/* Toggle Overlays */}
+          <div className="space-y-1.5 border-t border-slate-700/60 pt-2">
             <button
-              onClick={handleToggle3dTilt}
-              className={`flex-1 py-1 px-1.5 text-[10px] font-mono rounded border flex items-center justify-center gap-1 transition-colors ${
-                is3dTiltEnabled 
-                  ? 'bg-cyan-950 border-cyan-600/70 text-cyan-300 font-bold' 
-                  : 'bg-slate-800 border-slate-700 text-slate-400'
+              onClick={() => setShowSarHeatmap(!showSarHeatmap)}
+              className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-[10px] font-mono transition-all ${
+                showSarHeatmap
+                  ? 'bg-red-950/70 border border-red-600/50 text-red-300 font-bold'
+                  : 'bg-slate-800/60 border border-slate-700/40 text-slate-400'
               }`}
-              title="Toggle 3D Buildings & Tilt Angle"
             >
-              <Box className="w-3 h-3" />
-              <span>3D TILT {is3dTiltEnabled ? '45°' : '0°'}</span>
+              <span className="flex items-center gap-1.5">
+                {showSarHeatmap ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+                SAR InSAR Heatmap
+              </span>
+              <span className="text-[9px]">{showSarHeatmap ? 'ON' : 'OFF'}</span>
             </button>
 
             <button
-              onClick={handleZoomIn}
-              className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-xs transition-colors"
-              title="Zoom In"
+              onClick={() => setShowBypass(!showBypass)}
+              className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-[10px] font-mono transition-all ${
+                showBypass
+                  ? 'bg-emerald-950/70 border border-emerald-600/50 text-emerald-300 font-bold'
+                  : 'bg-slate-800/60 border border-slate-700/40 text-slate-400'
+              }`}
             >
-              <ZoomIn className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={handleZoomOut}
-              className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-xs transition-colors"
-              title="Zoom Out"
-            >
-              <ZoomOut className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={handleRecenter}
-              className="p-1.5 bg-slate-800 hover:bg-slate-700 text-cyan-400 rounded text-xs transition-colors"
-              title="Recenter Map"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
+              <span className="flex items-center gap-1.5">
+                {showBypass ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+                Bypass Route
+              </span>
+              <span className="text-[9px]">{showBypass ? 'ON' : 'OFF'}</span>
             </button>
           </div>
         </div>
 
+        {/* ─────────────────────────────────────────────────────── */}
+        {/* BOTTOM-RIGHT: Zoom / Recenter                          */}
+        {/* ─────────────────────────────────────────────────────── */}
+        <div className="absolute bottom-3 right-3 z-20 flex flex-col gap-1 bg-slate-900/80 backdrop-blur-md border border-slate-700/70 p-1.5 rounded-lg shadow-2xl">
+          <button onClick={handleZoomIn} className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-xs transition-colors" title="Zoom In">
+            <ZoomIn className="w-3.5 h-3.5" />
+          </button>
+          <button onClick={handleZoomOut} className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-xs transition-colors" title="Zoom Out">
+            <ZoomOut className="w-3.5 h-3.5" />
+          </button>
+          <button onClick={handleRecenter} className="p-1.5 bg-slate-800 hover:bg-slate-700 text-cyan-400 rounded text-xs transition-colors" title="Recenter NH-10 Corridor">
+            <RefreshCw className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </div>
     </div>
   );
