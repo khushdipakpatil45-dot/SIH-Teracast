@@ -12,6 +12,8 @@ from app.ml.runout.voellmy import VoellmySalmSimulator
 from app.services.osrm_service import OSRMService
 from app.services.anti_spoofing import AntiSpoofingValidator
 from app.services.ivrs_service import RegionalIVRSEngine
+from app.services.sar_service import sar_service
+from app.services.directions_service import directions_service
 from app.schemas.route import Coordinates
 
 class TestTerraCastPipeline(unittest.TestCase):
@@ -73,6 +75,32 @@ class TestTerraCastPipeline(unittest.TestCase):
         self.assertIn("Lava", route.recommended_route_name)
         self.assertIn("BLOCKED", route.standard_route_status)
         self.assertGreater(len(route.clearance_checkpoints), 0)
+
+    def test_sar_heatmap_geojson_generation(self):
+        async def run_sar():
+            return await sar_service.fetch_sar_deformation_heatmap("NH-10")
+        geojson = asyncio.run(run_sar())
+        self.assertEqual(geojson["type"], "FeatureCollection")
+        self.assertGreater(len(geojson["features"]), 0)
+        first_feat = geojson["features"][0]
+        self.assertIn("properties", first_feat)
+        self.assertIn("threat_tier", first_feat["properties"])
+        self.assertIn("los_velocity_mm_year", first_feat["properties"])
+        self.assertEqual(first_feat["geometry"]["type"], "Polygon")
+
+    def test_google_directions_safe_bypass(self):
+        async def run_bypass():
+            return await directions_service.calculate_safe_bypass(
+                origin_lat=26.7271,
+                origin_lon=88.3953,
+                dest_lat=27.3389,
+                dest_lon=88.6065,
+                corridor_id="NH-10"
+            )
+        bypass = asyncio.run(run_bypass())
+        self.assertEqual(bypass["status"], "SUCCESS")
+        self.assertIn("Lava", bypass["summary"])
+        self.assertGreater(len(bypass["checkpoints"]), 0)
 
     def test_anti_spoofing_validation(self):
         valid_report = AntiSpoofingValidator.validate_report(

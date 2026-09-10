@@ -1,6 +1,12 @@
 from typing import List, Union
-from pydantic import AnyHttpUrl, validator
-from pydantic_settings import BaseSettings
+try:
+    from pydantic_settings import BaseSettings
+except ImportError:
+    try:
+        from pydantic import BaseSettings  # type: ignore
+    except ImportError:
+        class BaseSettings:  # type: ignore
+            pass
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "TerraCast-NER Engine"
@@ -15,6 +21,18 @@ class Settings(BaseSettings):
         "https://terracast.ner.gov.in"
     ]
 
+    # Google Maps Platform
+    GOOGLE_MAPS_API_KEY: str = ""
+
+    # Live Synthetic Aperture Radar (SAR) Providers (Sentinel Hub & Copernicus)
+    SENTINEL_HUB_CLIENT_ID: str = ""
+    SENTINEL_HUB_CLIENT_SECRET: str = ""
+    SENTINEL_HUB_INSTANCE_ID: str = ""
+    SENTINEL_HUB_OAUTH_URL: str = "https://services.sentinel-hub.com/oauth/token"
+    SENTINEL_HUB_PROCESS_URL: str = "https://services.sentinel-hub.com/api/v1/process"
+    COPERNICUS_API_KEY: str = ""
+    COPERNICUS_ODATA_URL: str = "https://catalogue.dataspace.copernicus.eu/odata/v1"
+
     # Supabase & Database
     SUPABASE_URL: str = "https://your-project-id.supabase.co"
     SUPABASE_KEY: str = "your-anon-or-service-key"
@@ -25,7 +43,7 @@ class Settings(BaseSettings):
     CELERY_BROKER_URL: str = "redis://localhost:6379/1"
     CELERY_RESULT_BACKEND: str = "redis://localhost:6379/2"
 
-    # OSRM
+    # Routing
     OSRM_BACKEND_URL: str = "http://localhost:5000"
 
     # Telephony

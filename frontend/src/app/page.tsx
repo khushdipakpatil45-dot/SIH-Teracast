@@ -35,7 +35,7 @@ import {
 import { useHazardStore } from '@/stores/useHazardStore';
 import { subscribeToHazardEvents } from '@/lib/supabase';
 import { CORRIDORS_DATA } from '@/lib/corridors';
-import { InteractiveMap } from '@/components/gis/InteractiveMap';
+import { GoogleMapsGis } from '@/components/gis/GoogleMapsGis';
 import { SnapAndVerify } from '@/components/field/SnapAndVerify';
 import { PredictiveChart } from '@/components/analytics/PredictiveChart';
 
@@ -414,7 +414,7 @@ export default function CommandCenter() {
         {/* COLUMN 2: Detailed GIS SAR Map (~44% width -> col-span-5)              */}
         {/* ----------------------------------------------------------------------- */}
         <div className="lg:col-span-5 flex flex-col gap-2 min-h-[580px] h-full">
-          <InteractiveMap 
+          <GoogleMapsGis 
             corridorId={selectedCorridor} 
             isBlocked={isHighwayBlocked}
           />

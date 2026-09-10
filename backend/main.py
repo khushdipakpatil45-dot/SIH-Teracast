@@ -1,7 +1,8 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.api.v1.router import api_router
+from app.services.sar_service import sar_service
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -22,6 +23,14 @@ app.add_middleware(
 # Include API Routers
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
+# Direct root endpoint alias for SAR heatmap GeoJSON consumption
+@app.get("/api/sar-heatmap", tags=["Synthetic Aperture Radar (SAR)"])
+async def get_root_sar_heatmap(
+    corridor_id: str = Query("NH-10", description="Lifeline corridor: NH-10, NH-29, or NH-6")
+):
+    """Direct root endpoint returning C-band SAR ground deformation GeoJSON for Google Maps."""
+    return await sar_service.fetch_sar_deformation_heatmap(corridor_id=corridor_id)
+
 @app.get("/healthz", tags=["Health"])
 async def health_check():
     return {
@@ -35,7 +44,8 @@ async def root():
     return {
         "message": "Welcome to TerraCast-NER API Gateway",
         "docs_url": "/docs",
-        "health": "/healthz"
+        "health": "/healthz",
+        "sar_heatmap": "/api/sar-heatmap"
     }
 
 if __name__ == "__main__":
