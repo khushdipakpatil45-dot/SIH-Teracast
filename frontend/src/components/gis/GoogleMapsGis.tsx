@@ -13,6 +13,7 @@ import {
   EyeOff,
   Satellite,
   Mountain,
+  Moon,
   Map as MapIcon,
 } from 'lucide-react';
 
@@ -113,23 +114,24 @@ const SAR_ZONES: {
   },
 ];
 
-type TileLayer = 'satellite' | 'terrain' | 'roadmap';
+type TileLayer = 'dark' | 'satellite' | 'terrain';
 
-const TILE_SOURCES: Record<TileLayer, { url: string; attr: string; maxZoom: number }> = {
+const TILE_SOURCES: Record<TileLayer, { url: string; attr: string; maxZoom: number; maxNativeZoom?: number }> = {
+  dark: {
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+    attr: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
+    maxZoom: 18,
+    maxNativeZoom: 16,
+  },
   satellite: {
     url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-    attr: '&copy; Esri',
+    attr: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
     maxZoom: 18,
   },
   terrain: {
     url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
-    attr: '&copy; OpenTopoMap',
+    attr: 'Map data: &copy; OpenStreetMap contributors, SRTM | Map style: &copy; OpenTopoMap (CC-BY-SA)',
     maxZoom: 17,
-  },
-  roadmap: {
-    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-    attr: '&copy; CARTO',
-    maxZoom: 19,
   },
 };
 
@@ -143,7 +145,7 @@ export const GoogleMapsGis: React.FC<GoogleMapsGisProps> = ({
   const tileRef = useRef<any>(null);
   const overlayGroupRef = useRef<any>(null);
 
-  const [activeTile, setActiveTile] = useState<TileLayer>('satellite');
+  const [activeTile, setActiveTile] = useState<TileLayer>('dark');
   const [showSarHeatmap, setShowSarHeatmap] = useState(true);
   const [showBypass, setShowBypass] = useState(true);
   const [mapReady, setMapReady] = useState(false);
@@ -171,7 +173,10 @@ export const GoogleMapsGis: React.FC<GoogleMapsGisProps> = ({
       });
 
       const src = TILE_SOURCES[activeTile];
-      tileRef.current = L.tileLayer(src.url, { maxZoom: src.maxZoom }).addTo(map);
+      tileRef.current = L.tileLayer(src.url, {
+        maxZoom: src.maxZoom,
+        maxNativeZoom: src.maxNativeZoom,
+      }).addTo(map);
       overlayGroupRef.current = L.layerGroup().addTo(map);
 
       mapRef.current = map;
@@ -197,7 +202,10 @@ export const GoogleMapsGis: React.FC<GoogleMapsGisProps> = ({
       const L = (await import('leaflet')).default;
       if (tileRef.current) mapRef.current.removeLayer(tileRef.current);
       const src = TILE_SOURCES[activeTile];
-      tileRef.current = L.tileLayer(src.url, { maxZoom: src.maxZoom }).addTo(mapRef.current);
+      tileRef.current = L.tileLayer(src.url, {
+        maxZoom: src.maxZoom,
+        maxNativeZoom: src.maxNativeZoom,
+      }).addTo(mapRef.current);
     };
     swap();
   }, [activeTile]);
@@ -360,7 +368,7 @@ export const GoogleMapsGis: React.FC<GoogleMapsGisProps> = ({
             LIVE GIS MAP <span className="text-slate-400 text-[10px] font-normal">(Constraint d/b)</span>
           </h3>
           <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-950/70 border border-blue-600/40 text-blue-400">
-            SENTINEL-1 C-BAND InSAR + {activeTile === 'satellite' ? 'ESRI SATELLITE' : activeTile === 'terrain' ? 'OPENTOPOMAP TERRAIN' : 'CARTO DARK'}
+            SENTINEL-1 C-BAND InSAR + {activeTile === 'satellite' ? 'ESRI SATELLITE' : activeTile === 'terrain' ? 'OPENTOPOMAP TERRAIN' : 'ESRI DARK GRAY (DEFAULT)'}
           </span>
         </div>
         <div className="flex items-center gap-2 text-[11px] font-mono text-slate-400">
@@ -426,12 +434,25 @@ export const GoogleMapsGis: React.FC<GoogleMapsGisProps> = ({
           {/* Base Tile Buttons */}
           <div className="flex gap-1 mb-2">
             <button
+              onClick={() => setActiveTile('dark')}
+              className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-[10px] font-mono rounded-lg transition-all ${
+                activeTile === 'dark'
+                  ? 'bg-blue-600/90 text-white font-bold shadow-md shadow-blue-500/30'
+                  : 'bg-slate-800/80 text-slate-400 hover:text-white hover:bg-slate-700/80'
+              }`}
+              title="Dark Mode (Default) - Esri World Dark Gray Base"
+            >
+              <Moon className="w-3 h-3" />
+              Dark Mode (Default)
+            </button>
+            <button
               onClick={() => setActiveTile('satellite')}
               className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-[10px] font-mono rounded-lg transition-all ${
                 activeTile === 'satellite'
                   ? 'bg-blue-600/90 text-white font-bold shadow-md shadow-blue-500/30'
                   : 'bg-slate-800/80 text-slate-400 hover:text-white hover:bg-slate-700/80'
               }`}
+              title="Satellite - Esri World Imagery"
             >
               <Satellite className="w-3 h-3" />
               Satellite
@@ -443,20 +464,10 @@ export const GoogleMapsGis: React.FC<GoogleMapsGisProps> = ({
                   ? 'bg-blue-600/90 text-white font-bold shadow-md shadow-blue-500/30'
                   : 'bg-slate-800/80 text-slate-400 hover:text-white hover:bg-slate-700/80'
               }`}
+              title="Terrain - OpenTopoMap"
             >
               <Mountain className="w-3 h-3" />
               Terrain
-            </button>
-            <button
-              onClick={() => setActiveTile('roadmap')}
-              className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-[10px] font-mono rounded-lg transition-all ${
-                activeTile === 'roadmap'
-                  ? 'bg-blue-600/90 text-white font-bold shadow-md shadow-blue-500/30'
-                  : 'bg-slate-800/80 text-slate-400 hover:text-white hover:bg-slate-700/80'
-              }`}
-            >
-              <MapIcon className="w-3 h-3" />
-              Road
             </button>
           </div>
 

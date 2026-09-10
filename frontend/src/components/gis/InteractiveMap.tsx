@@ -20,21 +20,22 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   const layersGroupRef = useRef<any>(null);
   const tileLayerRef = useRef<any>(null);
 
-  const [activeTileType, setActiveTileType] = useState<'satellite' | 'dark' | 'topo'>('satellite');
+  const [activeTileType, setActiveTileType] = useState<'dark' | 'satellite' | 'topo'>('dark');
   const [isMapReady, setIsMapReady] = useState(false);
   const [selectedFeature, setSelectedFeature] = useState<string | null>('NH-10 Ranipool Sector');
 
   // Tile sources
   const tileSources = {
+    dark: {
+      url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+      attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
+      maxZoom: 18,
+      maxNativeZoom: 16,
+    },
     satellite: {
       url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
       attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
       maxZoom: 18,
-    },
-    dark: {
-      url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-      attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
-      maxZoom: 19,
     },
     topo: {
       url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
@@ -68,10 +69,11 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
         attributionControl: false,
       });
 
-      // Set base satellite tiles
+      // Set base dark tiles
       const currentTile = tileSources[activeTileType];
       tileLayerRef.current = L.tileLayer(currentTile.url, {
         maxZoom: currentTile.maxZoom,
+        maxNativeZoom: (currentTile as any).maxNativeZoom,
       }).addTo(map);
 
       // Create feature group for all overlays
@@ -104,6 +106,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       const newSource = tileSources[activeTileType];
       tileLayerRef.current = L.tileLayer(newSource.url, {
         maxZoom: newSource.maxZoom,
+        maxNativeZoom: (newSource as any).maxNativeZoom,
       }).addTo(mapInstanceRef.current);
     };
 
@@ -420,6 +423,17 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           {/* Layer Switcher */}
           <div className="flex items-center gap-1 bg-slate-950/60 p-0.5 rounded border border-slate-800">
             <button
+              onClick={() => setActiveTileType('dark')}
+              title="Dark Mode (Default) - Esri Dark Gray"
+              className={`px-2 py-1 text-[10px] font-mono rounded transition-colors ${
+                activeTileType === 'dark'
+                  ? 'bg-blue-600 text-white font-bold'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              DARK (DEFAULT)
+            </button>
+            <button
               onClick={() => setActiveTileType('satellite')}
               title="Esri Satellite Basemap"
               className={`px-2 py-1 text-[10px] font-mono rounded transition-colors ${
@@ -428,29 +442,18 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              SAT
-            </button>
-            <button
-              onClick={() => setActiveTileType('dark')}
-              title="Dark Canvas Basemap"
-              className={`px-2 py-1 text-[10px] font-mono rounded transition-colors ${
-                activeTileType === 'dark'
-                  ? 'bg-blue-600 text-white font-bold'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              DARK
+              SATELLITE
             </button>
             <button
               onClick={() => setActiveTileType('topo')}
-              title="Topographic Basemap"
+              title="OpenTopoMap Topographic Basemap"
               className={`px-2 py-1 text-[10px] font-mono rounded transition-colors ${
                 activeTileType === 'topo'
                   ? 'bg-blue-600 text-white font-bold'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              TOPO
+              TERRAIN
             </button>
           </div>
 
