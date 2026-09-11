@@ -1,18 +1,21 @@
 # TerraCast-NER: Physics-Informed Real-Time Landslide Early Warning & Safe Corridor System
 **Ministry of Development of North Eastern Region (MDoNER) | Problem Statement ID: 26001**
 
-[![Next.js 14](https://img.shields.io/badge/Frontend-Next.js%2014-black?style=flat&logo=next.js)](https://nextjs.org/)
+[![Next.js 16](https://img.shields.io/badge/Frontend-Next.js%2016%20App%20Router-black?style=flat&logo=next.js)](https://nextjs.org/)
+[![React 19](https://img.shields.io/badge/React-19-blue?style=flat&logo=react)](https://react.dev/)
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688?style=flat&logo=fastapi)](https://fastapi.tiangolo.com/)
 [![Supabase](https://img.shields.io/badge/Database-Supabase%20PostGIS-3ECF8E?style=flat&logo=supabase)](https://supabase.com/)
 [![Docker](https://img.shields.io/badge/Container-Docker%20Compose-2496ED?style=flat&logo=docker)](https://www.docker.com/)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fkhushdipakpatil45-dot%2FSIH-Teracast&root-directory=frontend)
 
 ---
 
-## 🌐 Quick Access Links
+## 🌐 Quick Access & Deployment Links
 
-* **Frontend Command Center (Local)**: **[http://localhost:3000](http://localhost:3000)**
-* **Backend API Swagger Documentation**: **[http://localhost:8000/docs](http://localhost:8000/docs)**
-* **GitHub Repository**: **[https://github.com/khushdipakpatil45-dot/SIH-Teracast](https://github.com/khushdipakpatil45-dot/SIH-Teracast)**
+* **🚀 1-Click Cloud Deployment (Vercel)**: **[Deploy TerraCast-NER on Vercel](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fkhushdipakpatil45-dot%2FSIH-Teracast&root-directory=frontend)**
+* **💻 Frontend Command Center (Local)**: **[http://localhost:3000](http://localhost:3000)**
+* **⚙️ Backend API Swagger Documentation**: **[http://localhost:8000/docs](http://localhost:8000/docs)**
+* **📦 GitHub Repository**: **[https://github.com/khushdipakpatil45-dot/SIH-Teracast](https://github.com/khushdipakpatil45-dot/SIH-Teracast)**
 
 ---
 
@@ -20,10 +23,15 @@
 
 **TerraCast-NER** is an enterprise-grade, all-weather landslide early warning and dynamic disaster response system engineered specifically for the North Eastern Region (NER) of India. The platform eliminates the 4–6 month monsoon optical satellite blind spot using all-weather Synthetic Aperture Radar (SAR), calculates dynamic slope Factor of Safety ($FS$) via Physics-Informed Neural Networks (PINNs), simulates 3D debris flow runouts, and dynamically reroutes rescue convoys (NDRF/SDRF) around blocked corridors.
 
-### Target Lifeline Corridors
+### Target Lifeline Corridors (8 High-Risk NER Arteries)
 1. **NH-10 (Siliguri - Sevoke - Gangtok)**: Critical supply line for Sikkim along the Teesta River gorge (chokepoint: 29th Mile).
-2. **NH-29 (Dimapur - Kohima - Imphal)**: Nagaland & Manipur transit lifeline (chokepoints: Pagla Pahar, Old KMC).
-3. **NH-6 (Guwahati - Shillong - Silchar)**: Meghalaya & Barak Valley lifeline (chokepoint: Sonapur Tunnel).
+2. **NH-27 (Siliguri - Bongaigaon - Guwahati)**: East-West Corridor connecting mainland India through the Assam bottleneck.
+3. **SH-5 (Jorhat - Sivasagar - Dibrugarh)**: Brahmaputra South Bank flood-slope failure axis.
+4. **NH-310A (Gangtok - Mangan - Chungthang)**: North Sikkim Defense Axis vulnerable to GLOF and torrential flash floods.
+5. **NH-306 (Silchar - Kolasib - Aizawl)**: Sole vehicular lifeline connecting Mizoram with the rest of India.
+6. **NH-13 (Pasighat - Roing - Tezu)**: Trans-Arunachal Highway traversing braided alluvial fans and unstable slopes.
+7. **NH-29 (Dimapur - Kohima - Imphal)**: Nagaland & Manipur transit lifeline (chokepoints: Pagla Pahar, Old KMC).
+8. **NH-6 (Guwahati - Shillong - Silchar)**: Meghalaya & Barak Valley lifeline (chokepoint: Sonapur Tunnel).
 
 ---
 
@@ -43,12 +51,15 @@ npm run dev
 ```
 Open **[http://localhost:3000](http://localhost:3000)** in your browser.
 
-#### Frontend Features:
-* **Interactive Spatial HUD**: Real-time vector map projecting highway lines, pulsing severed sections, and simulated $D_\infty$ debris runout polygons.
-* **Geotechnical Simulator**: Interactive button to simulate an escalating monsoon storm and watch $FS$ drop from 1.35 to 0.88 (<span style="color:red">CRITICAL</span>).
-* **Safe Bypass Navigation**: Dynamic routing via Lava $\to$ Algarah $\to$ Kalimpong with clearance checkpoints and GPX/GeoJSON export.
-* **Offline "Snap & Verify" PWA**: In-field camera capture, compass azimuth HUD, and local IndexedDB (Dexie.js) caching.
-* **Regional Dialect Switcher**: Instant switching between **English, Khasi, Mizo, Assamese, Bodo, and Garo**.
+#### Frontend Command Center Architecture & Features:
+* **Vertical Operations Hierarchy**: Dedicated 58vh Hero GIS Map on top, feeding into a synchronized 3-column operations & telemetry grid below.
+* **Atmospheric Glassmorphic UI**: Hazy desaturated satellite cloud backdrop with Slate-950 dark wash overlay, muted tactical status indicators, and zero distracting neon glows.
+* **Monospace Data Precision**: Strictly monospaced (`JetBrains Mono` / `Roboto Mono`) coordinates, FoS values, UTC/IST clocks, and sensor readings.
+* **Full 8 NER Corridors GIS Map**: Dynamic GIS vector map covering all 8 major northeastern lifeline routes, Sentinel-1 InSAR coherence overlays, and instant layer switching (Esri Dark Gray / Satellite / OpenTopoMap).
+* **PINN Geotechnical Simulator**: Interactive monsoon storm surge simulation demonstrating dynamic $FS$ degradation and soil pore-pressure progression.
+* **Dynamic Safe Bypass Routing**: OSRM-powered tactical evacuation bypass calculation with GPX and GeoJSON download capabilities.
+* **Offline "Snap & Verify" Ground-Truth PWA**: Field photo capture with compass azimuth heading HUD, device telemetry, and IndexedDB (Dexie.js) background synchronization.
+* **Regional Multilingual Support**: Instant switching across 6 northeastern languages (**English, Khasi, Mizo, Assamese, Bodo, and Garo**).
 
 ---
 
