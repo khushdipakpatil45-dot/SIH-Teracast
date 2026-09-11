@@ -7,112 +7,22 @@ import {
   ZoomOut,
   RefreshCw,
   AlertTriangle,
-  Key,
-  Box,
+  Radio,
   Eye,
   EyeOff,
   Satellite,
   Mountain,
-  Moon,
+  Compass,
   Map as MapIcon,
+  ShieldAlert
 } from 'lucide-react';
+import { CORRIDORS_DATA, CorridorData } from '@/lib/corridors';
 
 interface GoogleMapsGisProps {
   corridorId: string;
   isBlocked: boolean;
   onSelectNode?: (nodeName: string) => void;
 }
-
-// Real GPS coordinates for the NH-10 corridor
-const DEFAULT_CENTER: [number, number] = [27.15, 88.50];
-const DEFAULT_ZOOM = 10;
-
-const NH10_WAYPOINTS: { name: string; coords: [number, number]; isCapital?: boolean }[] = [
-  { name: 'Siliguri Hub', coords: [26.7271, 88.3953] },
-  { name: 'Sevoke Diversion', coords: [26.8833, 88.4719] },
-  { name: 'Teesta Bazaar (Hazard Zone)', coords: [27.0607, 88.4975] },
-  { name: 'Singtam Depot', coords: [27.2348, 88.4984] },
-  { name: 'Ranipool Outpost', coords: [27.2954, 88.5833] },
-  { name: 'Gangtok Command HQ', coords: [27.3389, 88.6065], isCapital: true },
-];
-
-const NH10_POLYLINE: [number, number][] = NH10_WAYPOINTS.map((w) => w.coords);
-
-const BYPASS_ROUTE: [number, number][] = [
-  [26.8833, 88.4719],  // Sevoke
-  [26.9800, 88.5800],  // Gorubathan
-  [27.0869, 88.5866],  // Lava
-  [27.0594, 88.4695],  // Kalimpong
-  [27.2348, 88.4984],  // Rejoin Singtam
-  [27.3389, 88.6065],  // Gangtok
-];
-
-const SAR_ZONES: {
-  id: string;
-  name: string;
-  tier: 'CRITICAL' | 'HIGH' | 'MODERATE' | 'LOW';
-  color: string;
-  fillOpacity: number;
-  velocity: string;
-  coords: [number, number][];
-}[] = [
-  {
-    id: 'crit-teesta',
-    name: 'Teesta Gorge Escarpment (KM 29.4)',
-    tier: 'CRITICAL',
-    color: '#ef4444',
-    fillOpacity: 0.55,
-    velocity: '-24.8 mm/yr',
-    coords: [
-      [27.045, 88.475],
-      [27.075, 88.515],
-      [27.065, 88.530],
-      [27.035, 88.490],
-    ],
-  },
-  {
-    id: 'high-singtam',
-    name: 'Singtam North Cut Slope',
-    tier: 'HIGH',
-    color: '#f97316',
-    fillOpacity: 0.45,
-    velocity: '-14.2 mm/yr',
-    coords: [
-      [27.220, 88.480],
-      [27.250, 88.515],
-      [27.240, 88.530],
-      [27.210, 88.495],
-    ],
-  },
-  {
-    id: 'mod-ranipool',
-    name: 'Ranipool Valley Fluvial Bank',
-    tier: 'MODERATE',
-    color: '#eab308',
-    fillOpacity: 0.40,
-    velocity: '-8.1 mm/yr',
-    coords: [
-      [27.280, 88.565],
-      [27.310, 88.600],
-      [27.300, 88.615],
-      [27.270, 88.580],
-    ],
-  },
-  {
-    id: 'low-sevoke',
-    name: 'Sevoke Forest Bedrock (Stable)',
-    tier: 'LOW',
-    color: '#22c55e',
-    fillOpacity: 0.30,
-    velocity: '-1.2 mm/yr',
-    coords: [
-      [26.870, 88.440],
-      [26.900, 88.490],
-      [26.890, 88.510],
-      [26.860, 88.460],
-    ],
-  },
-];
 
 type TileLayer = 'dark' | 'satellite' | 'terrain';
 
@@ -125,14 +35,150 @@ const TILE_SOURCES: Record<TileLayer, { url: string; attr: string; maxZoom: numb
   },
   satellite: {
     url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-    attr: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
+    attr: 'Tiles &copy; Esri &mdash; USGS, ESA, Copernicus',
     maxZoom: 18,
   },
   terrain: {
     url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
-    attr: 'Map data: &copy; OpenStreetMap contributors, SRTM | Map style: &copy; OpenTopoMap (CC-BY-SA)',
+    attr: 'Map data: &copy; OpenStreetMap contributors, SRTM',
     maxZoom: 17,
   },
+};
+
+// Fallback SAR zones mapped by corridor
+const FALLBACK_SAR_ZONES: Record<string, Array<{
+  id: string;
+  name: string;
+  tier: 'CRITICAL' | 'HIGH' | 'MODERATE' | 'LOW';
+  color: string;
+  fillOpacity: number;
+  velocity: string;
+  coords: [number, number][]; // [lat, lon]
+}>> = {
+  'NH-10': [
+    {
+      id: 'crit-teesta',
+      name: 'Teesta Gorge Escarpment (KM 29.4)',
+      tier: 'CRITICAL',
+      color: '#ef4444',
+      fillOpacity: 0.55,
+      velocity: '-24.8 mm/yr',
+      coords: [[27.045, 88.475], [27.075, 88.515], [27.065, 88.530], [27.035, 88.490]]
+    },
+    {
+      id: 'high-singtam',
+      name: 'Singtam North Cut Slope',
+      tier: 'HIGH',
+      color: '#f97316',
+      fillOpacity: 0.45,
+      velocity: '-14.2 mm/yr',
+      coords: [[27.220, 88.480], [27.250, 88.515], [27.240, 88.530], [27.210, 88.495]]
+    },
+    {
+      id: 'mod-ranipool',
+      name: 'Ranipool Fluvial Toe',
+      tier: 'MODERATE',
+      color: '#eab308',
+      fillOpacity: 0.40,
+      velocity: '-8.1 mm/yr',
+      coords: [[27.280, 88.565], [27.310, 88.600], [27.300, 88.615], [27.270, 88.580]]
+    }
+  ],
+  'NH-27': [
+    {
+      id: 'crit-haflong',
+      name: 'Haflong - Jatinga Valley Mudflow Basin (Dima Hasao)',
+      tier: 'CRITICAL',
+      color: '#ef4444',
+      fillOpacity: 0.60,
+      velocity: '-28.6 mm/yr',
+      coords: [[25.150, 93.010], [25.180, 93.045], [25.165, 93.060], [25.135, 93.025]]
+    },
+    {
+      id: 'crit-harangajao',
+      name: 'Harangajao Subsided Cut-Slope',
+      tier: 'CRITICAL',
+      color: '#ef4444',
+      fillOpacity: 0.55,
+      velocity: '-21.2 mm/yr',
+      coords: [[24.960, 92.840], [24.990, 92.875], [24.975, 92.890], [24.945, 92.855]]
+    }
+  ],
+  'SH-5': [
+    {
+      id: 'crit-mawkdok',
+      name: 'Mawkdok Dympep Gorge Canyon Rim (East Khasi Hills)',
+      tier: 'CRITICAL',
+      color: '#ef4444',
+      fillOpacity: 0.60,
+      velocity: '-22.1 mm/yr',
+      coords: [[25.340, 91.740], [25.370, 91.775], [25.355, 91.790], [25.325, 91.755]]
+    },
+    {
+      id: 'high-sohra',
+      name: 'Sohra (Cherrapunji) Plateau Saturation Toe',
+      tier: 'HIGH',
+      color: '#f97316',
+      fillOpacity: 0.50,
+      velocity: '-16.4 mm/yr',
+      coords: [[25.260, 91.710], [25.285, 91.745], [25.275, 91.760], [25.250, 91.725]]
+    }
+  ],
+  'NH-310A': [
+    {
+      id: 'crit-chungthang',
+      name: 'Chungthang Teesta Headwaters Dam Breach (North Sikkim)',
+      tier: 'CRITICAL',
+      color: '#ef4444',
+      fillOpacity: 0.65,
+      velocity: '-26.3 mm/yr',
+      coords: [[27.590, 88.630], [27.620, 88.665], [27.605, 88.675], [27.575, 88.640]]
+    }
+  ],
+  'NH-306': [
+    {
+      id: 'high-sairang',
+      name: 'Sairang Valley Regolith Slump (Aizawl)',
+      tier: 'HIGH',
+      color: '#f97316',
+      fillOpacity: 0.55,
+      velocity: '-16.8 mm/yr',
+      coords: [[23.790, 92.650], [23.820, 92.685], [23.805, 92.695], [23.775, 92.660]]
+    }
+  ],
+  'NH-13': [
+    {
+      id: 'high-sela',
+      name: 'Sela Pass High-Altitude Talus Slump (Tawang)',
+      tier: 'HIGH',
+      color: '#f97316',
+      fillOpacity: 0.55,
+      velocity: '-15.4 mm/yr',
+      coords: [[27.490, 92.090], [27.520, 92.125], [27.505, 92.135], [27.475, 92.100]]
+    }
+  ],
+  'NH-29': [
+    {
+      id: 'crit-paglapahar',
+      name: 'Pagla Pahar Chokepoint Creep Zone (Nagaland)',
+      tier: 'CRITICAL',
+      color: '#ef4444',
+      fillOpacity: 0.60,
+      velocity: '-21.4 mm/yr',
+      coords: [[25.750, 93.850], [25.770, 93.880], [25.755, 93.895], [25.735, 93.865]]
+    }
+  ],
+  'NH-6': [
+    {
+      id: 'crit-sonapur',
+      name: 'Sonapur Tunnel Mudflow Chokepoint (Meghalaya)',
+      tier: 'CRITICAL',
+      color: '#ef4444',
+      fillOpacity: 0.60,
+      velocity: '-23.4 mm/yr',
+      coords: [[25.095, 92.345], [25.125, 92.380], [25.110, 92.395], [25.080, 92.360]]
+    }
+  ]
 };
 
 export const GoogleMapsGis: React.FC<GoogleMapsGisProps> = ({
@@ -149,8 +195,35 @@ export const GoogleMapsGis: React.FC<GoogleMapsGisProps> = ({
   const [showSarHeatmap, setShowSarHeatmap] = useState(true);
   const [showBypass, setShowBypass] = useState(true);
   const [mapReady, setMapReady] = useState(false);
+  const [sarGeoJsonData, setSarGeoJsonData] = useState<any>(null);
 
-  // ---------- Leaflet init ----------
+  const corridorData: CorridorData = CORRIDORS_DATA[corridorId] || CORRIDORS_DATA['NH-10'];
+
+  // Fetch live SAR GeoJSON feed for the active corridor
+  useEffect(() => {
+    let isSubscribed = true;
+    const fetchSarFeed = async () => {
+      try {
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
+        const res = await fetch(`${backendUrl}/api/v1/sar/heatmap?corridor_id=${corridorId}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (isSubscribed && data && data.features) {
+            setSarGeoJsonData(data);
+          }
+        }
+      } catch {
+        // Fallback to calibrated local fixtures
+      }
+    };
+
+    fetchSarFeed();
+    return () => {
+      isSubscribed = false;
+    };
+  }, [corridorId]);
+
+  // Leaflet map initialization
   useEffect(() => {
     if (typeof window === 'undefined' || !mapContainerRef.current) return;
     let alive = true;
@@ -159,15 +232,14 @@ export const GoogleMapsGis: React.FC<GoogleMapsGisProps> = ({
       const L = (await import('leaflet')).default;
       if (!alive || !mapContainerRef.current) return;
 
-      // destroy previous instance if hot-reload
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;
       }
 
       const map = L.map(mapContainerRef.current, {
-        center: DEFAULT_CENTER,
-        zoom: DEFAULT_ZOOM,
+        center: corridorData.center,
+        zoom: corridorData.zoom,
         zoomControl: false,
         attributionControl: false,
       });
@@ -177,6 +249,7 @@ export const GoogleMapsGis: React.FC<GoogleMapsGisProps> = ({
         maxZoom: src.maxZoom,
         maxNativeZoom: src.maxNativeZoom,
       }).addTo(map);
+
       overlayGroupRef.current = L.layerGroup().addTo(map);
 
       mapRef.current = map;
@@ -195,7 +268,16 @@ export const GoogleMapsGis: React.FC<GoogleMapsGisProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ---------- Switch base tiles ----------
+  // Update center/zoom when corridor changes
+  useEffect(() => {
+    if (!mapRef.current || !mapReady) return;
+    mapRef.current.flyTo(corridorData.center, corridorData.zoom, {
+      duration: 1.2,
+      easeLinearity: 0.25,
+    });
+  }, [corridorId, corridorData, mapReady]);
+
+  // Switch base tiles
   useEffect(() => {
     if (!mapRef.current || typeof window === 'undefined') return;
     const swap = async () => {
@@ -210,7 +292,7 @@ export const GoogleMapsGis: React.FC<GoogleMapsGisProps> = ({
     swap();
   }, [activeTile]);
 
-  // ---------- Render overlays ----------
+  // Render overlays
   useEffect(() => {
     if (!mapRef.current || !overlayGroupRef.current || typeof window === 'undefined') return;
 
@@ -219,307 +301,256 @@ export const GoogleMapsGis: React.FC<GoogleMapsGisProps> = ({
       const grp = overlayGroupRef.current;
       grp.clearLayers();
 
-      // 1 ── SAR Deformation Heatmap Polygons
+      // 1. SAR Deformation Hazard Polygons
       if (showSarHeatmap) {
-        SAR_ZONES.forEach((z) => {
-          const poly = L.polygon(z.coords, {
-            color: z.color,
-            weight: 2,
-            fillColor: z.color,
-            fillOpacity: z.fillOpacity,
-            dashArray: z.tier === 'CRITICAL' ? undefined : '4,4',
+        if (sarGeoJsonData && sarGeoJsonData.features && sarGeoJsonData.features.length > 0) {
+          L.geoJSON(sarGeoJsonData, {
+            style: (feature: any) => {
+              const p = feature.properties || {};
+              return {
+                color: p.stroke_color || p.risk_color || '#ef4444',
+                weight: p.stroke_weight || 2,
+                fillColor: p.fill_color || p.risk_color || '#ef4444',
+                fillOpacity: p.fill_opacity || 0.55,
+              };
+            },
+            onEachFeature: (feature: any, layer: any) => {
+              const p = feature.properties || {};
+              layer.bindPopup(`
+                <div style="font-family:monospace;font-size:11px;padding:4px 6px;line-height:1.4">
+                  <div style="font-weight:bold;color:${p.risk_color || '#ef4444'};border-bottom:1px solid #334155;padding-bottom:2px;margin-bottom:3px">
+                    ${p.name || 'SAR Hazard Sector'}
+                  </div>
+                  <div>Tier: <b>${p.threat_tier || 'CRITICAL'}</b></div>
+                  <div>InSAR Velocity: <b>${p.los_velocity_mm_year ? p.los_velocity_mm_year + ' mm/yr' : 'N/A'}</b></div>
+                  <div>Pore Pressure: <b>${p.pore_pressure_kpa ? p.pore_pressure_kpa + ' kPa' : 'N/A'}</b></div>
+                  <div>Sensor Platform: <b>${p.sensor_platform || 'Sentinel-1C / InSAR C-Band'}</b></div>
+                  <div style="color:#94a3b8;font-size:10px;margin-top:2px">${p.description || ''}</div>
+                </div>
+              `);
+            },
           }).addTo(grp);
+        } else {
+          // Local fallback polygons for active corridor
+          const fallbackZones = FALLBACK_SAR_ZONES[corridorId] || FALLBACK_SAR_ZONES['NH-10'];
+          fallbackZones.forEach((z) => {
+            const poly = L.polygon(z.coords, {
+              color: z.color,
+              weight: 2,
+              fillColor: z.color,
+              fillOpacity: z.fillOpacity,
+            }).addTo(grp);
 
-          poly.bindPopup(`
-            <div style="font-family:monospace;font-size:11px;padding:2px 4px">
-              <strong style="color:${z.color}">${z.name}</strong><br/>
-              Tier: <b>${z.tier}</b><br/>
-              InSAR LOS: <b>${z.velocity}</b><br/>
-              Platform: Sentinel-1C / C-Band
-            </div>
-          `);
-        });
+            poly.bindPopup(`
+              <div style="font-family:monospace;font-size:11px;padding:4px 6px;line-height:1.4">
+                <div style="font-weight:bold;color:${z.color};border-bottom:1px solid #334155;padding-bottom:2px;margin-bottom:3px">
+                  ${z.name}
+                </div>
+                <div>Tier: <b>${z.tier}</b></div>
+                <div>InSAR LOS: <b>${z.velocity}</b></div>
+                <div>Sensor Platform: Sentinel-1C / C-Band</div>
+              </div>
+            `);
+          });
+        }
       }
 
-      // 2 ── NH-10 Main Highway (amber/yellow polyline)
-      L.polyline(NH10_POLYLINE, {
-        color: '#facc15',
-        weight: 5,
+      // 2. Main Highway Polyline
+      const waypoints: [number, number][] = corridorData.nodes.map((n) => [n.lat, n.lon]);
+      L.polyline(waypoints, {
+        color: isBlocked ? '#ef4444' : '#eab308',
+        weight: 4.5,
         opacity: 0.95,
-      })
-        .addTo(grp)
-        .bindPopup('<b style="color:#facc15;font-family:monospace">NH-10 Lifeline Corridor<br/>Siliguri → Gangtok</b>');
+        dashArray: isBlocked ? '6, 5' : undefined,
+      }).addTo(grp);
 
-      // 3 ── Blocked section at Teesta Bazaar
-      if (isBlocked) {
-        const blockedSeg: [number, number][] = [
-          [27.035, 88.480],
-          [27.0607, 88.4975],
-          [27.085, 88.510],
-        ];
+      // 3. Highway Nodes / Checkpoints
+      corridorData.nodes.forEach((node) => {
+        const isCritical = node.critical_risk;
+        const markerColor = isCritical && isBlocked ? '#ef4444' : isCritical ? '#f97316' : '#38bdf8';
 
-        L.polyline(blockedSeg, {
-          color: '#ef4444',
-          weight: 9,
-          opacity: 1,
-          dashArray: '8,6',
-        })
-          .addTo(grp)
-          .bindPopup('<b style="color:#ef4444;font-family:monospace">🚨 NH-10 SEVERED — KM 29.4 DEBRIS RUNOUT</b>');
+        const circle = L.circleMarker([node.lat, node.lon], {
+          radius: isCritical ? 6.5 : 4.5,
+          fillColor: markerColor,
+          color: '#0f172a',
+          weight: 2,
+          fillOpacity: 1,
+        }).addTo(grp);
 
-        // Pulsing failure marker
-        const pulseIcon = L.divIcon({
-          className: '',
-          html: `
-            <div style="position:relative;display:flex;align-items:center;justify-content:center;width:40px;height:40px">
-              <div style="position:absolute;width:40px;height:40px;background:#ef4444;border-radius:50%;animation:ping 1.2s cubic-bezier(0,0,.2,1) infinite;opacity:.6"></div>
-              <div style="position:relative;width:16px;height:16px;background:#ef4444;border:3px solid #fff;border-radius:50%;box-shadow:0 0 12px rgba(239,68,68,.7)"></div>
-            </div>
-            <style>@keyframes ping{75%,100%{transform:scale(2);opacity:0}}</style>
-          `,
-          iconSize: [40, 40],
-          iconAnchor: [20, 20],
-        });
+        circle.bindPopup(`
+          <div style="font-family:monospace;font-size:11px;padding:2px 4px">
+            <strong style="color:${markerColor}">${node.name}</strong><br/>
+            Chainage: <b>KM ${node.chainage_km.toFixed(1)}</b><br/>
+            Status: <b>${isCritical && isBlocked ? 'SEVERED / BLOCKED' : isCritical ? 'HIGH RISK' : 'PASSABLE'}</b>
+          </div>
+        `);
 
-        L.marker([27.0607, 88.4975], { icon: pulseIcon })
-          .addTo(grp)
-          .bindPopup(`
-            <div style="font-family:monospace;font-size:11px;padding:4px">
-              <strong style="color:#ef4444">CRITICAL CREEP: -24.8 mm/yr | BLOCKED</strong><br/>
-              <span style="color:#94a3b8">Debris Volume: 5,200 m³<br/>FS: 0.88 (FAILURE)</span>
-            </div>
-          `);
-      }
+        if (onSelectNode) {
+          circle.on('click', () => onSelectNode(node.name));
+        }
+      });
 
-      // 4 ── Safe NDRF Convoy Bypass (green dashed polyline)
-      if (showBypass) {
-        L.polyline(BYPASS_ROUTE, {
+      // 4. Tactical Safe Convoy Bypass
+      if (showBypass && corridorData.bypass && corridorData.bypass.coordinates.length > 0) {
+        const bypassCoords: [number, number][] = corridorData.bypass.coordinates.map(([lon, lat]) => [lat, lon]);
+        L.polyline(bypassCoords, {
           color: '#10b981',
-          weight: 4,
+          weight: 3.5,
+          dashArray: '6, 5',
           opacity: 0.9,
-          dashArray: '8,6',
-        })
-          .addTo(grp)
-          .bindPopup('<b style="color:#10b981;font-family:monospace">NDRF/SDRF Safe Convoy Bypass<br/>Via Lava → Kalimpong Ridge Route</b>');
+        }).addTo(grp);
+
+        // Checkpoints along bypass
+        corridorData.bypass.checkpoints.forEach((cp, idx) => {
+          if (idx < bypassCoords.length) {
+            const coord = bypassCoords[Math.min(idx, bypassCoords.length - 1)];
+            L.circleMarker(coord, {
+              radius: 4,
+              fillColor: '#10b981',
+              color: '#022c22',
+              weight: 1.5,
+              fillOpacity: 1,
+            })
+              .bindPopup(`
+                <div style="font-family:monospace;font-size:11px;padding:2px 4px">
+                  <strong style="color:#10b981">${cp.name}</strong><br/>
+                  Status: <b>${cp.status}</b><br/>
+                  Route: Convoy Safe Bypass
+                </div>
+              `)
+              .addTo(grp);
+          }
+        });
       }
-
-      // 5 ── Town markers
-      NH10_WAYPOINTS.forEach((wp) => {
-        const isCapital = wp.isCapital;
-        const townIcon = L.divIcon({
-          className: '',
-          html: `
-            <div style="display:flex;align-items:center;gap:4px;cursor:pointer;background:rgba(15,23,42,.85);backdrop-filter:blur(8px);padding:2px 6px;border-radius:4px;border:1px solid #334155;box-shadow:0 2px 8px rgba(0,0,0,.5)">
-              <div style="width:8px;height:8px;border-radius:50%;background:${isCapital ? '#06b6d4' : '#f8fafc'};${isCapital ? 'box-shadow:0 0 6px #06b6d4' : ''}"></div>
-              <span style="font-size:10px;font-family:monospace;font-weight:700;color:#e2e8f0;white-space:nowrap">${wp.name}</span>
-            </div>
-          `,
-          iconSize: [120, 22],
-          iconAnchor: [60, 11],
-        });
-
-        L.marker(wp.coords, { icon: townIcon })
-          .addTo(grp)
-          .on('click', () => onSelectNode?.(wp.name));
-      });
-
-      // 6 ── Flagged slope markers (🚩)
-      const flagSlopes: { name: string; coords: [number, number]; risk: string }[] = [
-        { name: 'Slope FL-29 (Teesta Escarpment)', coords: [27.055, 88.505], risk: 'CRITICAL' },
-        { name: 'Slope FL-12 (Ranipool North)', coords: [27.302, 88.596], risk: 'HIGH' },
-        { name: 'Slope FL-08 (Sevoke Cutting)', coords: [26.892, 88.472], risk: 'MODERATE' },
-      ];
-
-      flagSlopes.forEach((sl) => {
-        const flagIcon = L.divIcon({
-          className: '',
-          html: `<div style="font-size:18px;filter:drop-shadow(0 2px 4px rgba(0,0,0,.5));cursor:pointer;text-align:center">🚩</div>`,
-          iconSize: [24, 24],
-          iconAnchor: [12, 20],
-        });
-
-        L.marker(sl.coords, { icon: flagIcon })
-          .addTo(grp)
-          .bindPopup(`
-            <div style="font-family:monospace;font-size:11px;padding:2px 4px">
-              <strong style="color:#ef4444">${sl.name}</strong><br/>
-              Risk: <b>${sl.risk}</b><br/>
-              PINN Mohr-Coulomb FS: 0.88
-            </div>
-          `);
-      });
     };
 
     draw();
-  }, [corridorId, isBlocked, showSarHeatmap, showBypass, onSelectNode, mapReady]);
+  }, [corridorId, corridorData, isBlocked, showSarHeatmap, showBypass, sarGeoJsonData, onSelectNode]);
 
-  // ---------- Map controls ----------
-  const handleZoomIn = () => mapRef.current?.zoomIn();
-  const handleZoomOut = () => mapRef.current?.zoomOut();
-  const handleRecenter = () => mapRef.current?.setView(DEFAULT_CENTER, DEFAULT_ZOOM);
+  // Zoom controls
+  const handleZoom = (delta: number) => {
+    if (!mapRef.current) return;
+    mapRef.current.setZoom(mapRef.current.getZoom() + delta);
+  };
+
+  const handleResetView = () => {
+    if (!mapRef.current) return;
+    mapRef.current.flyTo(corridorData.center, corridorData.zoom, { duration: 1.0 });
+  };
 
   return (
-    <div className="relative w-full h-full min-h-[520px] bg-slate-950 flex flex-col rounded-lg overflow-hidden border border-slate-700/80 shadow-2xl">
-      {/* ── Header Bar ── */}
-      <div className="flex items-center justify-between px-3.5 py-2 bg-slate-900/95 border-b border-slate-700/80 z-10 select-none">
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
-          <h3 className="text-xs font-mono font-bold tracking-wider text-slate-100 uppercase">
-            LIVE GIS MAP <span className="text-slate-400 text-[10px] font-normal">(Constraint d/b)</span>
-          </h3>
-          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-950/70 border border-blue-600/40 text-blue-400">
-            SENTINEL-1 C-BAND InSAR + {activeTile === 'satellite' ? 'ESRI SATELLITE' : activeTile === 'terrain' ? 'OPENTOPOMAP TERRAIN' : 'ESRI DARK GRAY (DEFAULT)'}
-          </span>
+    <div className="relative w-full h-full min-h-[580px] bg-slate-950 border border-slate-700 rounded-lg overflow-hidden flex flex-col select-none">
+      
+      {/* Top Tactical HUD Bar */}
+      <div className="absolute top-2 left-2 right-2 z-[400] flex items-center justify-between gap-2 pointer-events-none">
+        
+        {/* Left Status HUD */}
+        <div className="bg-slate-900/95 border border-slate-700 rounded px-2.5 py-1.5 flex items-center gap-3 text-xs font-mono pointer-events-auto shadow-md">
+          <div className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-cyan-400"></span>
+            <span className="font-bold text-slate-200">{corridorData.id}</span>
+            <span className="text-slate-400 text-[11px]">({corridorData.state})</span>
+          </div>
+
+          <span className="text-slate-700">|</span>
+
+          <div className="flex items-center gap-1 text-[11px]">
+            <span className="text-slate-400">Status:</span>
+            {isBlocked ? (
+              <span className="text-red-400 font-bold flex items-center gap-1">
+                <ShieldAlert className="w-3.5 h-3.5" /> SEVERED
+              </span>
+            ) : (
+              <span className="text-emerald-400 font-bold">CLEAR / PASSABLE</span>
+            )}
+          </div>
+
+          <span className="text-slate-700 hidden sm:inline">|</span>
+
+          <div className="hidden sm:flex items-center gap-1 text-[11px] text-slate-400">
+            <span>Center:</span>
+            <span className="text-slate-200">{corridorData.center[0].toFixed(2)}°N, {corridorData.center[1].toFixed(2)}°E</span>
+          </div>
         </div>
-        <div className="flex items-center gap-2 text-[11px] font-mono text-slate-400">
-          <span className="text-emerald-400 font-semibold flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            SAR COHERENCE: 96.2%
-          </span>
+
+        {/* Right Layer & Satellite Switcher */}
+        <div className="bg-slate-900/95 border border-slate-700 rounded p-1 flex items-center gap-1 pointer-events-auto shadow-md text-xs font-mono">
+          {(['dark', 'satellite', 'terrain'] as TileLayer[]).map((tile) => (
+            <button
+              key={tile}
+              onClick={() => setActiveTile(tile)}
+              className={`px-2 py-0.5 rounded uppercase text-[10px] font-bold transition-colors ${
+                activeTile === tile
+                  ? 'bg-slate-700 text-cyan-400 border border-slate-600'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+              }`}
+            >
+              {tile}
+            </button>
+          ))}
         </div>
+
       </div>
 
-      {/* ── Map Container ── */}
-      <div className="relative flex-1 w-full h-full min-h-[460px]">
-        <div ref={mapContainerRef} className="w-full h-full z-0" />
+      {/* Leaflet Map Canvas Container */}
+      <div ref={mapContainerRef} className="w-full h-full flex-1 z-0" />
 
-        {/* ─────────────────────────────────────────────────────── */}
-        {/* TOP-LEFT: Floating Legend                               */}
-        {/* ─────────────────────────────────────────────────────── */}
-        <div className="absolute top-3 left-3 z-20 bg-slate-900/80 backdrop-blur-md border border-slate-700/70 rounded-lg p-2.5 shadow-2xl max-w-[200px] text-[11px] select-none">
-          <div className="text-[10px] font-mono uppercase tracking-wider text-slate-300 font-bold border-b border-slate-700/60 pb-1 mb-1.5 flex items-center justify-between">
-            <span>Spatial Legend</span>
-            <span className="text-cyan-400 text-[9px]">SAR 10m</span>
-          </div>
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-sm bg-red-500 border border-red-400 flex-shrink-0" />
-              <span className="text-slate-200 font-medium">Critical (FS &lt; 1.0)</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-sm bg-amber-500 border border-amber-400 flex-shrink-0" />
-              <span className="text-slate-300">High (FS 1.0–1.2)</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-sm bg-yellow-500 border border-yellow-400 flex-shrink-0" />
-              <span className="text-slate-300">Moderate</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-sm bg-emerald-500 border border-emerald-400 flex-shrink-0" />
-              <span className="text-slate-400">Stable</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="w-4 h-1 rounded bg-yellow-400 flex-shrink-0" />
-              <span className="text-slate-300">NH-10 Highway</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="w-4 h-1 rounded bg-emerald-400 flex-shrink-0" style={{ borderTop: '1px dashed white' }} />
-              <span className="text-slate-300">Safe Convoy Bypass</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs">🚩</span>
-              <span className="text-slate-300">Flagged Slopes</span>
-            </div>
-          </div>
-        </div>
+      {/* Bottom Map Controls Overlay */}
+      <div className="absolute bottom-2 left-2 z-[400] flex items-center gap-1.5 bg-slate-900/95 border border-slate-700 rounded p-1 text-xs font-mono shadow-md">
+        
+        {/* Toggle SAR */}
+        <button
+          onClick={() => setShowSarHeatmap(!showSarHeatmap)}
+          className={`px-2 py-1 rounded text-[11px] flex items-center gap-1.5 font-bold transition-colors ${
+            showSarHeatmap
+              ? 'bg-red-950/70 border border-red-700/80 text-red-300'
+              : 'bg-slate-800 text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          {showSarHeatmap ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+          <span>SAR InSAR Polygons</span>
+        </button>
 
-        {/* ─────────────────────────────────────────────────────── */}
-        {/* TOP-RIGHT: Glassmorphism Layer Controls                 */}
-        {/* ─────────────────────────────────────────────────────── */}
-        <div className="absolute top-3 right-3 z-20 bg-slate-900/70 backdrop-blur-xl border border-slate-600/50 rounded-xl p-2.5 shadow-2xl select-none min-w-[170px]">
-          <div className="text-[9px] font-mono uppercase tracking-wider text-slate-400 mb-2 font-bold">
-            Map Layers
-          </div>
+        {/* Toggle Tactical Bypass */}
+        <button
+          onClick={() => setShowBypass(!showBypass)}
+          className={`px-2 py-1 rounded text-[11px] flex items-center gap-1.5 font-bold transition-colors ${
+            showBypass
+              ? 'bg-emerald-950/70 border border-emerald-700/80 text-emerald-300'
+              : 'bg-slate-800 text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          {showBypass ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+          <span>Tactical Bypass</span>
+        </button>
 
-          {/* Base Tile Buttons */}
-          <div className="flex gap-1 mb-2">
-            <button
-              onClick={() => setActiveTile('dark')}
-              className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-[10px] font-mono rounded-lg transition-all ${
-                activeTile === 'dark'
-                  ? 'bg-blue-600/90 text-white font-bold shadow-md shadow-blue-500/30'
-                  : 'bg-slate-800/80 text-slate-400 hover:text-white hover:bg-slate-700/80'
-              }`}
-              title="Dark Mode (Default) - Esri World Dark Gray Base"
-            >
-              <Moon className="w-3 h-3" />
-              Dark Mode (Default)
-            </button>
-            <button
-              onClick={() => setActiveTile('satellite')}
-              className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-[10px] font-mono rounded-lg transition-all ${
-                activeTile === 'satellite'
-                  ? 'bg-blue-600/90 text-white font-bold shadow-md shadow-blue-500/30'
-                  : 'bg-slate-800/80 text-slate-400 hover:text-white hover:bg-slate-700/80'
-              }`}
-              title="Satellite - Esri World Imagery"
-            >
-              <Satellite className="w-3 h-3" />
-              Satellite
-            </button>
-            <button
-              onClick={() => setActiveTile('terrain')}
-              className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-[10px] font-mono rounded-lg transition-all ${
-                activeTile === 'terrain'
-                  ? 'bg-blue-600/90 text-white font-bold shadow-md shadow-blue-500/30'
-                  : 'bg-slate-800/80 text-slate-400 hover:text-white hover:bg-slate-700/80'
-              }`}
-              title="Terrain - OpenTopoMap"
-            >
-              <Mountain className="w-3 h-3" />
-              Terrain
-            </button>
-          </div>
-
-          {/* Toggle Overlays */}
-          <div className="space-y-1.5 border-t border-slate-700/60 pt-2">
-            <button
-              onClick={() => setShowSarHeatmap(!showSarHeatmap)}
-              className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-[10px] font-mono transition-all ${
-                showSarHeatmap
-                  ? 'bg-red-950/70 border border-red-600/50 text-red-300 font-bold'
-                  : 'bg-slate-800/60 border border-slate-700/40 text-slate-400'
-              }`}
-            >
-              <span className="flex items-center gap-1.5">
-                {showSarHeatmap ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
-                SAR InSAR Heatmap
-              </span>
-              <span className="text-[9px]">{showSarHeatmap ? 'ON' : 'OFF'}</span>
-            </button>
-
-            <button
-              onClick={() => setShowBypass(!showBypass)}
-              className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-[10px] font-mono transition-all ${
-                showBypass
-                  ? 'bg-emerald-950/70 border border-emerald-600/50 text-emerald-300 font-bold'
-                  : 'bg-slate-800/60 border border-slate-700/40 text-slate-400'
-              }`}
-            >
-              <span className="flex items-center gap-1.5">
-                {showBypass ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
-                Bypass Route
-              </span>
-              <span className="text-[9px]">{showBypass ? 'ON' : 'OFF'}</span>
-            </button>
-          </div>
-        </div>
-
-        {/* ─────────────────────────────────────────────────────── */}
-        {/* BOTTOM-RIGHT: Zoom / Recenter                          */}
-        {/* ─────────────────────────────────────────────────────── */}
-        <div className="absolute bottom-3 right-3 z-20 flex flex-col gap-1 bg-slate-900/80 backdrop-blur-md border border-slate-700/70 p-1.5 rounded-lg shadow-2xl">
-          <button onClick={handleZoomIn} className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-xs transition-colors" title="Zoom In">
-            <ZoomIn className="w-3.5 h-3.5" />
-          </button>
-          <button onClick={handleZoomOut} className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-xs transition-colors" title="Zoom Out">
-            <ZoomOut className="w-3.5 h-3.5" />
-          </button>
-          <button onClick={handleRecenter} className="p-1.5 bg-slate-800 hover:bg-slate-700 text-cyan-400 rounded text-xs transition-colors" title="Recenter NH-10 Corridor">
-            <RefreshCw className="w-3.5 h-3.5" />
-          </button>
-        </div>
       </div>
+
+      {/* Bottom Right Zoom Controls */}
+      <div className="absolute bottom-2 right-2 z-[400] flex flex-col gap-1 bg-slate-900/95 border border-slate-700 rounded p-1 shadow-md">
+        <button
+          onClick={() => handleZoom(1)}
+          className="p-1.5 rounded hover:bg-slate-800 text-slate-300 transition-colors"
+          title="Zoom In"
+        >
+          <ZoomIn className="w-4 h-4" />
+        </button>
+        <button
+          onClick={() => handleZoom(-1)}
+          className="p-1.5 rounded hover:bg-slate-800 text-slate-300 transition-colors"
+          title="Zoom Out"
+        >
+          <ZoomOut className="w-4 h-4" />
+        </button>
+        <button
+          onClick={handleResetView}
+          className="p-1.5 rounded hover:bg-slate-800 text-slate-300 transition-colors"
+          title="Reset Corridor View"
+        >
+          <RefreshCw className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
     </div>
   );
 };

@@ -48,10 +48,16 @@ async def evaluate_hazard(
             distance_to_road_m=280.0
         )
 
+        # Dynamic critical risk node detection for requested corridor
+        key_nodes = corridor_info.get("key_nodes", [])
+        critical_node = next((n for n in key_nodes if n.get("critical_risk")), key_nodes[0] if key_nodes else {"name": "Corridor Sector", "lat": 26.9851, "lon": 88.4612, "chainage_km": 29.4})
+        origin_lat = critical_node.get("lat", 26.9851)
+        origin_lon = critical_node.get("lon", 88.4612)
+
         # Generate D-Infinity spatial runout fan polygon
         runout_geom = DInfinityRouting.generate_runout_polygon(
-            origin_lat=26.9851,
-            origin_lon=88.4612,
+            origin_lat=origin_lat,
+            origin_lon=origin_lon,
             runout_length_m=kinetics["max_runout_distance_m"],
             aspect_deg=185.0
         )
@@ -59,8 +65,8 @@ async def evaluate_hazard(
         zone_id = uuid.uuid4()
         critical_zone = CriticalZoneOut(
             zone_id=zone_id,
-            location_name=f"{request.corridor_id} (KM 29.4 - Teesta Gorge)",
-            chainage_km=29.4,
+            location_name=f"{request.corridor_id} - {critical_node.get('name')}",
+            chainage_km=critical_node.get("chainage_km", 29.4),
             factor_of_safety=geotech["factor_of_safety"],
             threat_tier=geotech["threat_tier"],
             trigger_probability=geotech["trigger_probability"],
@@ -103,3 +109,36 @@ async def get_corridor_status(corridor_id: str):
         "recommended_bypass": corridor_info["bypass_route"]["name"],
         "updated_at": datetime.utcnow()
     }
+
+@router.get("/alerts/history")
+async def get_emergency_alerts_history():
+    """
+    Returns live log of all emergency intimations dispatched via SIP voice & SMS gateway
+    across North Eastern Region state disaster agencies and local villages.
+    """
+    from app.services.ivrs_service import RegionalIVRSEngine
+    return RegionalIVRSEngine.get_dispatch_history()
+
+@router.post("/alerts/dispatch")
+async def trigger_emergency_dispatch(
+    district: str = "Dima Hasao",
+    corridor_id: str = "NH-27",
+    location: str = "Haflong Hill Cut",
+    tier: str = "CRITICAL",
+    language: str = "assamese"
+):
+    """Triggers outbound SIP voice call & SMS broadcast intimation to SDRF and local villages."""
+    from app.services.ivrs_service import RegionalIVRSEngine
+    dialects = ["Assamese", "English"] if language == "assamese" else ["Khasi", "English"] if language == "khasi" else ["Mizo", "English"] if language == "mizo" else ["Nepali", "Hindi", "English"]
+    entry = RegionalIVRSEngine.log_dispatch(
+        district=district,
+        corridor=corridor_id,
+        location=location,
+        tier=tier,
+        dialects=dialects
+    )
+    return {
+        "status": "DISPATCHED",
+        "dispatch": entry
+    }
+

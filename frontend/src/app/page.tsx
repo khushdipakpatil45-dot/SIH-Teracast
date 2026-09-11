@@ -30,14 +30,212 @@ import {
   FileText,
   Share2,
   ExternalLink,
-  Flame
+  Flame,
+  ArrowLeft,
+  Film
 } from 'lucide-react';
 import { useHazardStore } from '@/stores/useHazardStore';
 import { subscribeToHazardEvents } from '@/lib/supabase';
-import { CORRIDORS_DATA } from '@/lib/corridors';
+import { CORRIDORS_DATA, CorridorData } from '@/lib/corridors';
 import { GoogleMapsGis } from '@/components/gis/GoogleMapsGis';
 import { SnapAndVerify } from '@/components/field/SnapAndVerify';
 import { PredictiveChart } from '@/components/analytics/PredictiveChart';
+
+interface AlertItem {
+  id: string;
+  tier: string;
+  district: string;
+  corridor: string;
+  location: string;
+  timestamp: string;
+  summary: string;
+  dialects: string[];
+  channels: string[];
+}
+
+interface FieldReportItem {
+  report_id: string;
+  client_uuid: string;
+  reporter_name: string;
+  reporter_phone: string;
+  corridor_id: string;
+  location_name: string;
+  latitude: number;
+  longitude: number;
+  compass_azimuth: number;
+  slope_tilt: number;
+  hazard_type: string;
+  severity: string;
+  notes: string;
+  media_type: 'image' | 'video' | 'none';
+  media_url: string | null;
+  thumbnail_url: string | null;
+  exif_verified: boolean;
+  exif_metadata: any;
+  anti_spoofing_status: string;
+  confidence_score: number;
+  timestamp: string;
+  created_at: string;
+}
+
+// Initial emergency dispatch log
+const INITIAL_ALERTS: AlertItem[] = [
+  {
+    id: 'disp-001',
+    tier: 'CRITICAL',
+    district: 'Dima Hasao',
+    corridor: 'NH-27',
+    location: 'Haflong - Jatinga Valley',
+    timestamp: '09:45 IST',
+    dialects: ['Assamese', 'English'],
+    channels: ['SIP IVRS Outbound', 'Bulk SMS', 'CAP-CP'],
+    summary: '[CRITICAL | Dima Hasao | 09:45 IST] IVRS & SMS dispatched to SDRF and Local Villages',
+  },
+  {
+    id: 'disp-002',
+    tier: 'CRITICAL',
+    district: 'East Khasi Hills',
+    corridor: 'SH-5',
+    location: 'Mawkdok Dympep Gorge',
+    timestamp: '09:15 IST',
+    dialects: ['Khasi', 'English'],
+    channels: ['SIP Automated Call', 'SMS Gateway'],
+    summary: '[CRITICAL | East Khasi Hills | 09:15 IST] IVRS & SMS dispatched to SDRF and Local Villages',
+  },
+  {
+    id: 'disp-003',
+    tier: 'HIGH',
+    district: 'North Sikkim',
+    corridor: 'NH-310A',
+    location: 'Chungthang Headwaters',
+    timestamp: '08:50 IST',
+    dialects: ['Nepali', 'English'],
+    channels: ['SMS Broadcast', 'VHF Relay'],
+    summary: '[HIGH | North Sikkim | 08:50 IST] Soil saturation 91%. Pre-emptive traffic diversion intimation dispatched',
+  },
+  {
+    id: 'disp-004',
+    tier: 'CRITICAL',
+    district: 'Sikkim (NH-10)',
+    corridor: 'NH-10',
+    location: '29th Mile (Teesta Gorge)',
+    timestamp: '08:10 IST',
+    dialects: ['Nepali', 'Hindi', 'English'],
+    channels: ['SIP IVRS Broadcast', 'SMS Gateway'],
+    summary: '[CRITICAL | NH-10 Teesta | 08:10 IST] IVRS & SMS dispatched to SDRF and Local Villages',
+  },
+  {
+    id: 'disp-005',
+    tier: 'HIGH',
+    district: 'Aizawl',
+    corridor: 'NH-306',
+    location: 'Sairang Hill Incline',
+    timestamp: '07:30 IST',
+    dialects: ['Mizo', 'English'],
+    channels: ['SMS Gateway', 'Local Radio'],
+    summary: '[HIGH | Aizawl | 07:30 IST] IVRS & SMS dispatched to SDRF and Local Villages',
+  }
+];
+
+// Initial field reports seed
+const INITIAL_FIELD_REPORTS: FieldReportItem[] = [
+  {
+    report_id: 'rep-ner-001',
+    client_uuid: 'cl-001',
+    reporter_name: 'Rajesh Vol.',
+    reporter_phone: '+91-98765-43210',
+    corridor_id: 'NH-10',
+    location_name: 'Ranipool Valley',
+    latitude: 27.2940,
+    longitude: 88.5910,
+    compass_azimuth: 185.0,
+    slope_tilt: 42.0,
+    hazard_type: 'ROAD_SUBSIDENCE',
+    severity: 'HIGH',
+    notes: 'Minor slumping and visible diagonal tension crack across road lane.',
+    media_type: 'image',
+    media_url: '/uploads/seed_ranipool.jpg',
+    thumbnail_url: '/uploads/seed_ranipool.jpg',
+    exif_verified: true,
+    exif_metadata: { camera: 'Sony IMX766 (Mobile)', geotag_integrity: 'HARDWARE_STAMPED_MATCH' },
+    anti_spoofing_status: 'VALID',
+    confidence_score: 0.96,
+    timestamp: '10:45 IST',
+    created_at: '2026-09-11T05:15:00Z'
+  },
+  {
+    report_id: 'rep-ner-002',
+    client_uuid: 'cl-002',
+    reporter_name: 'Tashi BRO Officer',
+    reporter_phone: '+91-94350-11223',
+    corridor_id: 'NH-10',
+    location_name: '29th Mile Escarpment',
+    latitude: 26.9851,
+    longitude: 88.4612,
+    compass_azimuth: 184.0,
+    slope_tilt: 46.5,
+    hazard_type: 'ROCKFALL',
+    severity: 'CRITICAL',
+    notes: 'Talus scree sliding onto road shoulder. Rockfall barrier breached.',
+    media_type: 'image',
+    media_url: '/uploads/seed_29mile.jpg',
+    thumbnail_url: '/uploads/seed_29mile.jpg',
+    exif_verified: true,
+    exif_metadata: { camera: 'Garmin GPSCam Pro', geotag_integrity: 'HARDWARE_STAMPED_MATCH' },
+    anti_spoofing_status: 'VALID',
+    confidence_score: 0.98,
+    timestamp: '10:12 IST',
+    created_at: '2026-09-11T04:42:00Z'
+  },
+  {
+    report_id: 'rep-ner-003',
+    client_uuid: 'cl-003',
+    reporter_name: 'Lalthanga SDRF Scout',
+    reporter_phone: '+91-98623-77889',
+    corridor_id: 'NH-27',
+    location_name: 'Haflong Hill Cut (Dima Hasao)',
+    latitude: 25.1682,
+    longitude: 93.0298,
+    compass_azimuth: 210.0,
+    slope_tilt: 44.0,
+    hazard_type: 'MUD_FLOW',
+    severity: 'CRITICAL',
+    notes: 'Rotational mudflow active near Jatinga valley railway alignment.',
+    media_type: 'video',
+    media_url: '/uploads/seed_haflong.mp4',
+    thumbnail_url: '/uploads/seed_haflong_thumb.jpg',
+    exif_verified: true,
+    exif_metadata: { video_codec: 'H.264 / MP4', geotag_integrity: 'CELLULAR_TRIANGULATION_VERIFIED' },
+    anti_spoofing_status: 'VALID',
+    confidence_score: 0.94,
+    timestamp: '09:50 IST',
+    created_at: '2026-09-11T04:20:00Z'
+  },
+  {
+    report_id: 'rep-ner-004',
+    client_uuid: 'cl-004',
+    reporter_name: 'Pema Citizen',
+    reporter_phone: '+91-94361-99887',
+    corridor_id: 'NH-310A',
+    location_name: 'Chungthang Headwaters',
+    latitude: 27.6040,
+    longitude: 88.6470,
+    compass_azimuth: 175.0,
+    slope_tilt: 48.0,
+    hazard_type: 'TENSION_CRACK',
+    severity: 'HIGH',
+    notes: 'Turbid seepage observed at culvert base and 8cm fissure.',
+    media_type: 'image',
+    media_url: '/uploads/seed_chungthang.jpg',
+    thumbnail_url: '/uploads/seed_chungthang.jpg',
+    exif_verified: true,
+    exif_metadata: { camera: 'iPhone 14 Pro', geotag_integrity: 'HARDWARE_STAMPED_MATCH' },
+    anti_spoofing_status: 'VALID',
+    confidence_score: 0.95,
+    timestamp: '09:30 IST',
+    created_at: '2026-09-11T04:00:00Z'
+  }
+];
 
 export default function CommandCenter() {
   const { 
@@ -51,23 +249,27 @@ export default function CommandCenter() {
     addBlockedSegment
   } = useHazardStore();
 
-  const [activeTab, setActiveTab] = useState<'DASHBOARD' | 'GIS MAP' | 'RISK REPORTS' | 'FIELD SYNC' | 'ALERTS' | 'RESOURCES'>('DASHBOARD');
-  const [currentTime, setCurrentTime] = useState('11 SEP 2026 | 01:30 IST');
+  const [activeTab, setActiveTab] = useState<'DASHBOARD' | 'GIS MAP' | 'FIELD SYNC' | 'ALERTS' | 'RESOURCES'>('DASHBOARD');
+  const [currentTime, setCurrentTime] = useState('11 SEP 2026 | 09:30 IST');
   const [isOnline, setIsOnline] = useState(true);
   const [isSimulatingStorm, setIsSimulatingStorm] = useState(false);
   const [isSnapModalOpen, setIsSnapModalOpen] = useState(false);
-  const [selectedLanguage, setSelectedLanguage] = useState<'en' | 'khasi' | 'mizo' | 'assamese' | 'bodo' | 'garo'>('en');
   const [adminDropdownOpen, setAdminDropdownOpen] = useState(false);
-  const [alertsCount, setAlertsCount] = useState(4);
+  const [alertsCount, setAlertsCount] = useState(5);
 
-  const activeCorridorData = CORRIDORS_DATA[selectedCorridor] || CORRIDORS_DATA['NH-10'];
+  // Dynamic state for emergency alerts log
+  const [alertsLog, setAlertsLog] = useState<AlertItem[]>(INITIAL_ALERTS);
+
+  // Dynamic state for field reports feed
+  const [fieldReports, setFieldReports] = useState<FieldReportItem[]>(INITIAL_FIELD_REPORTS);
+
+  const activeCorridorData: CorridorData = CORRIDORS_DATA[selectedCorridor] || CORRIDORS_DATA['NH-10'];
   const isHighwayBlocked = isSimulatingStorm || blockedRoadSegments.includes(selectedCorridor);
 
   // Live IST Clock update
   useEffect(() => {
     const updateTime = () => {
       const now = new Date();
-      // Format as DD MMM YYYY | HH:mm IST
       const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
       const day = String(now.getDate()).padStart(2, '0');
       const month = months[now.getMonth()];
@@ -95,6 +297,38 @@ export default function CommandCenter() {
     };
   }, []);
 
+  // Fetch live backend alert history & field reports on mount
+  useEffect(() => {
+    const loadBackendFeeds = async () => {
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
+      try {
+        const [alertsRes, reportsRes] = await Promise.all([
+          fetch(`${backendUrl}/api/v1/hazard/alerts/history`).catch(() => null),
+          fetch(`${backendUrl}/api/v1/field-reports/history`).catch(() => null),
+        ]);
+
+        if (alertsRes && alertsRes.ok) {
+          const alertsData = await alertsRes.json();
+          if (Array.isArray(alertsData) && alertsData.length > 0) {
+            setAlertsLog(alertsData);
+            setAlertsCount(alertsData.length);
+          }
+        }
+
+        if (reportsRes && reportsRes.ok) {
+          const reportsData = await reportsRes.json();
+          if (Array.isArray(reportsData) && reportsData.length > 0) {
+            setFieldReports(reportsData);
+          }
+        }
+      } catch {
+        // Retain initial pre-seeded data
+      }
+    };
+
+    loadBackendFeeds();
+  }, []);
+
   // Supabase Realtime CDC subscription
   useEffect(() => {
     const unsubscribe = subscribeToHazardEvents(
@@ -111,12 +345,44 @@ export default function CommandCenter() {
   }, [selectedCorridor, updateCriticalCount, addBlockedSegment]);
 
   // Simulation handler: Escalates rainfall and pore pressure to trigger shear failure
-  const handleToggleStormSimulation = () => {
+  const handleToggleStormSimulation = async () => {
     if (!isSimulatingStorm) {
       setIsSimulatingStorm(true);
       addBlockedSegment(selectedCorridor);
       updateCriticalCount((c) => c + 1);
       setAlertsCount((prev) => prev + 1);
+
+      const nowStr = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }) + ' IST';
+      const newAlert: AlertItem = {
+        id: `disp-sim-${Date.now()}`,
+        tier: 'CRITICAL',
+        district: activeCorridorData.district,
+        corridor: selectedCorridor,
+        location: `${activeCorridorData.nodes.find(n => n.critical_risk)?.name || activeCorridorData.name}`,
+        timestamp: nowStr,
+        dialects: ['Assamese', 'Khasi', 'Mizo', 'English'],
+        channels: ['SIP IVRS Outbound', 'SMS Broadcast', 'CAP-CP Intimation'],
+        summary: `[CRITICAL | ${activeCorridorData.district} | ${nowStr}] IVRS & SMS dispatched to SDRF and Local Villages`
+      };
+
+      setAlertsLog((prev) => [newAlert, ...prev]);
+
+      // Call backend dispatch endpoint if available
+      try {
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
+        await fetch(`${backendUrl}/api/v1/hazard/alerts/dispatch`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            district: activeCorridorData.district,
+            corridor_id: selectedCorridor,
+            location: newAlert.location,
+            tier: 'CRITICAL'
+          })
+        });
+      } catch {
+        // Fallback
+      }
     } else {
       setIsSimulatingStorm(false);
     }
@@ -135,45 +401,49 @@ export default function CommandCenter() {
     downloadAnchor.remove();
   };
 
+  // Handler for newly submitted field reports from SnapAndVerify
+  const handleNewReportSubmitted = (newReport: FieldReportItem) => {
+    setFieldReports((prev) => [newReport, ...prev]);
+  };
+
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col select-none font-sans pb-9">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col select-none font-sans pb-8">
       
       {/* ========================================================================= */}
-      {/* 1. TOP NAVIGATION BAR                                                     */}
+      {/* 1. PERSISTENT TOP NAVIGATION BAR (Command Center Theme)                   */}
       {/* ========================================================================= */}
-      <header className="h-14 bg-slate-900 border-b border-slate-700/80 px-4 flex items-center justify-between sticky top-0 z-50 shadow-lg">
-        {/* Left: App Logo + TERRACAST-NER + vertical separator + Muted Title */}
+      <header className="h-13 bg-slate-900 border-b border-slate-700 px-4 flex items-center justify-between sticky top-0 z-50 shadow-sm">
+        
+        {/* Left: App Logo + Title */}
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-cyan-500 p-0.5 flex items-center justify-center shadow-md shadow-blue-500/20">
-              <div className="w-full h-full bg-slate-950 rounded-[6px] flex items-center justify-center">
-                <Radio className="w-4 h-4 text-cyan-400 animate-pulse" />
-              </div>
+            <div className="w-7 h-7 bg-slate-800 border border-slate-600 rounded flex items-center justify-center">
+              <Radio className="w-4 h-4 text-cyan-400" />
             </div>
-            <span className="font-extrabold text-base tracking-wider text-white font-mono">
+            <span className="font-extrabold text-sm tracking-wider text-white font-mono">
               TERRACAST-NER
             </span>
           </div>
 
-          <div className="h-5 w-[1px] bg-slate-700 hidden sm:block"></div>
+          <div className="h-4 w-[1px] bg-slate-700 hidden sm:block"></div>
 
-          <span className="text-xs text-slate-400 font-mono tracking-wider hidden sm:block">
-            TITLE: AI-POWERED EARLY WARNING | NER
+          <span className="text-[11px] text-slate-400 font-mono tracking-wide hidden sm:block uppercase">
+            Disaster Early Warning &amp; Lifeline Command Center
           </span>
         </div>
 
-        {/* Center Navigation Tabs: Pill-style tabs */}
-        <nav className="hidden lg:flex items-center gap-1.5 bg-slate-950/70 p-1 rounded-full border border-slate-800">
-          {(['DASHBOARD', 'GIS MAP', 'RISK REPORTS', 'FIELD SYNC', 'ALERTS', 'RESOURCES'] as const).map((tab) => {
+        {/* Center Navigation Tabs: Clean Data-Dense Tabs */}
+        <nav className="flex items-center gap-1 bg-slate-950 border border-slate-800 p-0.5 rounded">
+          {(['DASHBOARD', 'GIS MAP', 'FIELD SYNC', 'ALERTS', 'RESOURCES'] as const).map((tab) => {
             const isActive = activeTab === tab;
             return (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`px-3.5 py-1 text-xs font-mono rounded-full transition-all duration-200 ${
+                className={`px-3 py-1 text-xs font-mono font-bold rounded transition-colors ${
                   isActive
-                    ? 'bg-blue-600/25 text-blue-400 border border-blue-500/60 shadow-sm shadow-blue-500/30 font-bold'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 border border-transparent'
+                    ? 'bg-slate-800 text-cyan-400 border border-slate-600'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900 border border-transparent'
                 }`}
               >
                 {tab}
@@ -182,592 +452,482 @@ export default function CommandCenter() {
           })}
         </nav>
 
-        {/* Right Controls: Red alert badge pill + User profile dropdown */}
-        <div className="flex items-center gap-3">
-          {/* Red Alert Pill */}
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-950/70 border border-red-500/60 text-red-400 text-xs font-mono font-bold animate-pulse shadow-sm shadow-red-500/20">
-            <span className="text-sm">🚨</span>
-            <span>{alertsCount} ACTIVE ALERTS</span>
+        {/* Right Controls: Red Alert Indicator + Corridor Switcher */}
+        <div className="flex items-center gap-2.5">
+          
+          {/* Active Alerts Badge */}
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-red-950/80 border border-red-700 text-red-300 text-xs font-mono font-bold">
+            <ShieldAlert className="w-3.5 h-3.5 text-red-400" />
+            <span>{alertsCount} DISPATCH ALERTS</span>
           </div>
 
-          {/* User Profile Dropdown Button */}
+          {/* Admin Station Profile */}
           <div className="relative">
             <button
               onClick={() => setAdminDropdownOpen(!adminDropdownOpen)}
-              className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-750 border border-slate-700 text-xs font-medium text-slate-200 transition-colors shadow-sm"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-750 border border-slate-700 text-xs font-mono text-slate-200 transition-colors"
             >
               <span>👤</span>
-              <span className="hidden sm:inline">District Admin | Gangtok</span>
-              <span className="sm:hidden">Admin</span>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+              <span className="hidden sm:inline">NER HQ | Gangtok</span>
+              <ChevronDown className="w-3 h-3 text-slate-400" />
             </button>
 
             {adminDropdownOpen && (
-              <div className="absolute right-0 mt-1.5 w-52 bg-slate-900 border border-slate-700 rounded-lg shadow-2xl py-1.5 z-50 text-xs font-mono">
+              <div className="absolute right-0 mt-1 w-56 bg-slate-900 border border-slate-700 rounded shadow-xl py-1 z-50 text-xs font-mono">
                 <div className="px-3 py-1.5 border-b border-slate-800 text-slate-400">
-                  Logged in as: <strong className="text-slate-200 block">SDRF Gangtok HQ</strong>
+                  Command Agency: <strong className="text-slate-200 block">SDRF / NDRF NER Joint Cell</strong>
                 </div>
-                <button 
-                  onClick={() => setAdminDropdownOpen(false)}
-                  className="w-full text-left px-3 py-1.5 hover:bg-slate-800 text-slate-300"
-                >
-                  Switch Corridor (NH-10 / NH-29)
-                </button>
-                <button 
-                  onClick={() => setAdminDropdownOpen(false)}
-                  className="w-full text-left px-3 py-1.5 hover:bg-slate-800 text-slate-300"
-                >
-                  IVRS Audio Broadcast Panel
-                </button>
-                <div className="border-t border-slate-800 my-1"></div>
-                <button 
-                  onClick={() => setAdminDropdownOpen(false)}
-                  className="w-full text-left px-3 py-1.5 hover:bg-red-950/50 text-red-400"
-                >
-                  Sign Out
-                </button>
+                <div className="px-3 py-1 text-[10px] text-slate-500 uppercase font-bold">Monitored State Sector</div>
+                {Object.keys(CORRIDORS_DATA).map((cid) => (
+                  <button
+                    key={cid}
+                    onClick={() => {
+                      setSelectedCorridor(cid);
+                      setAdminDropdownOpen(false);
+                    }}
+                    className={`w-full text-left px-3 py-1 text-xs hover:bg-slate-800 flex items-center justify-between ${
+                      selectedCorridor === cid ? 'text-cyan-400 font-bold bg-slate-800/60' : 'text-slate-300'
+                    }`}
+                  >
+                    <span>{cid}</span>
+                    <span className="text-[10px] text-slate-400">{CORRIDORS_DATA[cid].district}</span>
+                  </button>
+                ))}
               </div>
             )}
           </div>
+
         </div>
       </header>
 
       {/* ========================================================================= */}
-      {/* MAIN 4-COLUMN COMMAND CENTER GRID (18% | 44% | 20% | 18%)                 */}
+      {/* 2. TAB ROUTING VIEW: FIELD SYNC FULL-SCREEN VIEW                          */}
       {/* ========================================================================= */}
-      <main className="flex-1 p-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-3 max-w-[1920px] w-full mx-auto">
-
-        {/* ----------------------------------------------------------------------- */}
-        {/* COLUMN 1: Status & Weather Summary (~18% width -> col-span-2)          */}
-        {/* ----------------------------------------------------------------------- */}
-        <div className="lg:col-span-2 flex flex-col gap-3">
-          
-          {/* Card 1: Date/Time */}
-          <div className="bg-slate-900/90 border border-slate-700/80 rounded-lg p-3 shadow-md">
-            <div className="flex items-center justify-between text-[10px] font-mono text-slate-400 uppercase tracking-wider mb-1">
-              <span>Station Timestamp</span>
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            </div>
-            <div className="text-sm font-mono font-bold text-white flex items-center gap-2">
-              <Clock className="w-4 h-4 text-cyan-400 flex-shrink-0" />
-              <span>{currentTime}</span>
-            </div>
-            <div className="mt-1 text-[10px] font-mono text-slate-400">
-              Indian Standard Time (UTC+05:30)
-            </div>
-          </div>
-
-          {/* Card 2: Current Status */}
-          <div className="bg-slate-900/90 border border-amber-500/40 rounded-lg p-3 shadow-md relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-16 h-16 bg-amber-500/10 rounded-full blur-xl pointer-events-none"></div>
-            <div className="text-[10px] font-mono text-amber-400 uppercase tracking-wider mb-1 flex items-center gap-1.5 font-semibold">
-              <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
-              Operation Mode
-            </div>
-            <div className="px-2.5 py-1.5 rounded-md bg-amber-950/60 border border-amber-600/50 text-amber-300 font-mono text-xs font-bold leading-tight">
-              MONSOON DETECTED - ACTIVE MONITORING
-            </div>
-            <div className="mt-2 text-[10px] text-slate-400 font-mono flex items-center justify-between">
-              <span>Teesta Basin Saturation</span>
-              <span className="text-amber-400 font-bold">88.4%</span>
-            </div>
-          </div>
-
-          {/* Card 3: Risk Summary - Constraint f */}
-          <div className="bg-slate-900/90 border border-slate-700/80 rounded-lg p-3 shadow-md flex-1 flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 font-bold">
-                  Risk Summary (Constraint f)
-                </span>
-                <span className="text-[10px] font-mono text-slate-500">55 SLOPES</span>
-              </div>
-
-              <div className="space-y-2">
-                {/* Critical */}
-                <div className="bg-red-950/60 border border-red-600/60 rounded-lg px-3 py-2 flex items-center justify-between shadow-sm">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span>
-                    <span className="text-xs font-mono font-bold text-red-200">Critical</span>
-                  </div>
-                  <span className="text-base font-mono font-black text-red-400">{criticalZonesCount}</span>
-                </div>
-
-                {/* High */}
-                <div className="bg-amber-950/60 border border-amber-600/60 rounded-lg px-3 py-2 flex items-center justify-between shadow-sm">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
-                    <span className="text-xs font-mono font-bold text-amber-200">High</span>
-                  </div>
-                  <span className="text-base font-mono font-black text-amber-400">15</span>
-                </div>
-
-                {/* Moderate */}
-                <div className="bg-yellow-950/50 border border-yellow-600/50 rounded-lg px-3 py-2 flex items-center justify-between shadow-sm">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-yellow-500"></span>
-                    <span className="text-xs font-mono font-bold text-yellow-200">Moderate</span>
-                  </div>
-                  <span className="text-base font-mono font-black text-yellow-400">34</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Quick Corridor Switcher */}
-            <div className="mt-3 pt-2.5 border-t border-slate-800">
-              <span className="text-[9px] font-mono uppercase text-slate-400 block mb-1.5">Monitored Corridor</span>
-              <div className="grid grid-cols-3 gap-1">
-                {(['NH-10', 'NH-29', 'NH-6'] as const).map((id) => (
-                  <button
-                    key={id}
-                    onClick={() => setSelectedCorridor(id)}
-                    className={`py-1 text-[10px] font-mono font-bold rounded transition-colors ${
-                      selectedCorridor === id
-                        ? 'bg-blue-600 text-white shadow-sm'
-                        : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
-                    }`}
-                  >
-                    {id}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Card 4: Weather Forecast - IMD API */}
-          <div className="bg-slate-900/90 border border-slate-700/80 rounded-lg p-3 shadow-md">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 font-bold">
-                Weather Forecast
-              </span>
-              <span className="text-[9px] font-mono text-emerald-400 flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
-                IMD API live data
-              </span>
-            </div>
-
-            {/* 2x2 Grid */}
-            <div className="grid grid-cols-2 gap-2 text-xs font-mono">
-              <div className="bg-slate-950/70 border border-slate-800 rounded p-2 flex flex-col">
-                <div className="flex items-center justify-between text-slate-400">
-                  <CloudRain className="w-4 h-4 text-cyan-400" />
-                  <span className="text-[10px]">Gangtok</span>
-                </div>
-                <div className="text-sm font-bold text-white mt-1">15°C</div>
-                <div className="text-[9px] text-cyan-300">Heavy Rain</div>
-              </div>
-
-              <div className="bg-slate-950/70 border border-slate-800 rounded p-2 flex flex-col">
-                <div className="flex items-center justify-between text-slate-400">
-                  <CloudLightning className="w-4 h-4 text-amber-400" />
-                  <span className="text-[10px]">Ranipool</span>
-                </div>
-                <div className="text-sm font-bold text-white mt-1">18°C</div>
-                <div className="text-[9px] text-amber-300">Downpour</div>
-              </div>
-
-              <div className="bg-slate-950/70 border border-slate-800 rounded p-2 flex flex-col">
-                <div className="flex items-center justify-between text-slate-400">
-                  <Droplets className="w-4 h-4 text-blue-400" />
-                  <span className="text-[10px]">Singtam</span>
-                </div>
-                <div className="text-sm font-bold text-white mt-1">19°C</div>
-                <div className="text-[9px] text-blue-300">92% Humid</div>
-              </div>
-
-              <div className="bg-slate-950/70 border border-slate-800 rounded p-2 flex flex-col">
-                <div className="flex items-center justify-between text-slate-400">
-                  <Wind className="w-4 h-4 text-emerald-400" />
-                  <span className="text-[10px]">Sevoke</span>
-                </div>
-                <div className="text-sm font-bold text-white mt-1">21°C</div>
-                <div className="text-[9px] text-emerald-300">42 km/h Wind</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Interactive Simulation Trigger Button */}
-          <button
-            onClick={handleToggleStormSimulation}
-            className={`w-full py-2.5 px-3 rounded-lg font-mono text-xs font-bold transition-all shadow-lg flex items-center justify-center gap-2 ${
-              isSimulatingStorm
-                ? 'bg-rose-600 hover:bg-rose-500 text-white shadow-rose-600/30'
-                : 'bg-gradient-to-r from-blue-700 to-indigo-700 hover:from-blue-600 hover:to-indigo-600 text-white shadow-blue-700/30'
-            }`}
-          >
-            {isSimulatingStorm ? (
-              <>
-                <RotateCcw className="w-3.5 h-3.5 animate-spin" />
-                <span>RESET SIMULATION</span>
-              </>
-            ) : (
-              <>
-                <Flame className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
-                <span>SIMULATE STORM (KM 29.4)</span>
-              </>
-            )}
-          </button>
-
-        </div>
-
-        {/* ----------------------------------------------------------------------- */}
-        {/* COLUMN 2: Detailed GIS SAR Map (~44% width -> col-span-5)              */}
-        {/* ----------------------------------------------------------------------- */}
-        <div className="lg:col-span-5 flex flex-col gap-2 min-h-[580px] h-full">
-          <GoogleMapsGis 
-            corridorId={selectedCorridor} 
-            isBlocked={isHighwayBlocked}
-          />
-        </div>
-
-        {/* ----------------------------------------------------------------------- */}
-        {/* COLUMN 3: Analytics & Incident Response (~20% width -> col-span-3)      */}
-        {/* ----------------------------------------------------------------------- */}
-        <div className="lg:col-span-3 flex flex-col gap-3">
-          
-          {/* Card A: LIVE PREDICTIVE ANALYTICS (Constraint b/f) */}
-          <div className="bg-slate-900/90 border border-slate-700/80 rounded-lg p-3 shadow-md">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 font-bold">
-                LIVE PREDICTIVE ANALYTICS (Constraint b/f)
-              </span>
-              <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-red-950 border border-red-700/60 text-red-400 animate-pulse">
-                LIVE PINN
-              </span>
-            </div>
-
-            {/* Subheader */}
-            <div className="bg-red-950/50 border-l-2 border-red-500 px-2.5 py-1.5 my-2 rounded-r">
-              <div className="text-xs font-mono font-bold text-red-400 flex items-center gap-1.5">
-                <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
-                <span>NH-10 | PINN Model: FAILURE PROBABLE in 4 Hours</span>
-              </div>
-              <div className="text-[10px] text-slate-400 mt-0.5 font-mono">
-                Pore water pressure exceeds critical shear resistance.
-              </div>
-            </div>
-
-            {/* Interactive Predictive Line Chart */}
-            <PredictiveChart />
-          </div>
-
-          {/* Card B: EMERGENCY ALERTS LOG (Constraint c) */}
-          <div className="bg-slate-900/90 border border-slate-700/80 rounded-lg p-3 shadow-md flex-1 flex flex-col">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 font-bold">
-                EMERGENCY ALERTS LOG (Constraint c)
-              </span>
-              <span className="text-[9px] font-mono text-cyan-400">IVRS &amp; CAP</span>
-            </div>
-
-            {/* Scrollable feed */}
-            <div className="space-y-2 overflow-y-auto max-h-[170px] pr-1">
-              <div className="bg-slate-950/80 border border-red-800/60 rounded p-2 text-[11px] font-mono">
-                <div className="text-red-400 font-bold">
-                  [CRITICAL | NH-10 Ranipool | 11:15 IST]
-                </div>
-                <div className="text-slate-300 mt-0.5 text-[10px]">
-                  SMS/Voice Sent (Mizo, Nepalese, English) to SDRF &amp; NDRF 2nd Bn.
-                </div>
-              </div>
-
-              <div className="bg-slate-950/80 border border-amber-800/60 rounded p-2 text-[11px] font-mono">
-                <div className="text-amber-400 font-bold">
-                  [HIGH | NH-29 Pagla Pahar | 10:30 IST]
-                </div>
-                <div className="text-slate-300 mt-0.5 text-[10px]">
-                  Soil pore pressure spiked to 42.1 kPa. Traffic divert alert dispatched.
-                </div>
-              </div>
-
-              <div className="bg-slate-950/80 border border-yellow-800/60 rounded p-2 text-[11px] font-mono">
-                <div className="text-yellow-400 font-bold">
-                  [WARNING | NH-6 Sonapur | 09:45 IST]
-                </div>
-                <div className="text-slate-300 mt-0.5 text-[10px]">
-                  InSAR deformation &gt;14mm/yr detected. Border Roads Org notified.
-                </div>
-              </div>
-
-              <div className="bg-slate-950/80 border border-slate-800 rounded p-2 text-[11px] font-mono">
-                <div className="text-slate-400 font-bold">
-                  [ADVISORY | Gangtok Urban | 08:20 IST]
-                </div>
-                <div className="text-slate-400 mt-0.5 text-[10px]">
-                  Heavy precipitation &gt;65mm/hr forecast by IMD Doppler Radar.
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Card C: ROAD CONNECTIVITY & REROUTING (Constraint f) */}
-          <div className="bg-slate-900/90 border border-slate-700/80 rounded-lg p-3 shadow-md">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 font-bold">
-                ROAD CONNECTIVITY &amp; REROUTING (Constraint f)
-              </span>
-              <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-emerald-950 border border-emerald-700/60 text-emerald-400 font-semibold">
-                OSRM ACTIVE
-              </span>
-            </div>
-
-            {/* Text Status */}
-            <div className="space-y-1 text-xs font-mono">
-              <div className="flex items-center gap-1.5 text-red-400 font-semibold">
-                <span className="w-2 h-2 rounded-full bg-red-500"></span>
-                <span>• NH-10 blocked (Red)</span>
-              </div>
-              <div className="flex items-center gap-1.5 text-emerald-400 text-[11px]">
-                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                <span>• NDRF/SDRF alternate safe routes calculated</span>
-              </div>
-            </div>
-
-            {/* Mini thumbnail canvas / card showing bypass route */}
-            <div className="mt-2.5 bg-slate-950 border border-slate-800 rounded p-2 relative overflow-hidden">
-              <div className="flex items-center justify-between text-[10px] font-mono text-slate-400 border-b border-slate-800 pb-1 mb-1.5">
-                <span className="text-cyan-400 font-bold">Tactical Bypass Route</span>
-                <span>Lava → Algarah → Kalimpong</span>
-              </div>
-
-              {/* Schematic Bypass Visual */}
-              <div className="h-14 w-full relative flex items-center justify-center bg-slate-950/90 rounded border border-slate-800/60">
-                <svg viewBox="0 0 280 50" className="w-full h-full">
-                  {/* Blocked line */}
-                  <line x1="20" y1="35" x2="140" y2="35" stroke="#ef4444" strokeWidth="3" strokeDasharray="4,3" />
-                  <circle cx="140" cy="35" r="4" fill="#ef4444" />
-                  <text x="140" y="47" fill="#ef4444" fontSize="8" textAnchor="middle" fontFamily="monospace">KM 29.4 BLOCKED</text>
-
-                  {/* Bypass dashed line */}
-                  <path d="M 20 35 Q 80 5 150 12 T 260 20" fill="none" stroke="#10b981" strokeWidth="2.5" strokeDasharray="5,4" />
-                  <circle cx="260" cy="20" r="3.5" fill="#10b981" />
-                  <text x="260" y="12" fill="#10b981" fontSize="8" textAnchor="middle" fontFamily="monospace">GANGTOK</text>
-                </svg>
-              </div>
-
-              <div className="mt-2 flex items-center justify-between text-[10px] font-mono">
-                <span className="text-slate-400">Clearance: <strong className="text-emerald-400">100% CLEAR</strong></span>
-                <button
-                  onClick={handleExportBypassGeoJSON}
-                  className="px-2 py-0.5 rounded bg-blue-900/60 hover:bg-blue-800 border border-blue-600/60 text-blue-300 flex items-center gap-1 text-[10px] transition-colors"
-                >
-                  <Download className="w-3 h-3" />
-                  Export GPX/GeoJSON
-                </button>
-              </div>
-            </div>
-          </div>
-
-        </div>
-
-        {/* ----------------------------------------------------------------------- */}
-        {/* COLUMN 4: Field Reports & Citizen Science (~18% width -> col-span-2)   */}
-        {/* ----------------------------------------------------------------------- */}
-        <div className="lg:col-span-2 flex flex-col gap-3">
-          
-          <div className="bg-slate-900/90 border border-slate-700/80 rounded-lg p-3 shadow-md flex-1 flex flex-col">
-            
-            {/* Header */}
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 font-bold">
-                FIELD REPORTS (Constraint e/d)
-              </span>
-              <span className="text-[9px] font-mono text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-1.5 py-0.2 rounded">
-                8 TODAY
-              </span>
-            </div>
-
-            {/* Top Action Mini-Bar */}
-            <div className="bg-slate-950/80 border border-slate-800 rounded px-2.5 py-1.5 flex items-center justify-between mb-2.5">
-              <span className="text-[10px] font-mono text-cyan-400 flex items-center gap-1">
-                <MapPin className="w-3 h-3" />
-                + Geo-tagged user uploads
-              </span>
-              <span className="text-[9px] font-mono text-slate-400">Offline-sync</span>
-            </div>
-
-            {/* Scrollable Card Feed: 4 Populated Submissions */}
-            <div className="space-y-2.5 overflow-y-auto flex-1 pr-1 max-h-[460px]">
-              
-              {/* Card 1 */}
-              <div className="bg-slate-950/70 border border-slate-800 hover:border-slate-700 rounded-lg p-2 transition-colors">
-                <div className="flex items-start gap-2">
-                  <div className="w-7 h-7 rounded-full bg-blue-600/30 border border-blue-500/60 flex items-center justify-center text-xs font-bold text-blue-300 flex-shrink-0">
-                    RV
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between text-[11px] font-mono">
-                      <span className="font-bold text-slate-200 truncate">Rajesh Vol.</span>
-                      <span className="text-[10px] text-slate-400">10:45 IST</span>
-                    </div>
-                    <div className="text-[10px] font-mono text-cyan-400">Ranipool</div>
-                    <div className="text-[11px] text-slate-300 mt-1 italic leading-tight">
-                      &ldquo;Minor Slumping/Visible Cracks&rdquo;
-                    </div>
-                  </div>
-                </div>
-
-                {/* Embedded photo thumbnail with play overlay icon */}
-                <div className="mt-2 relative h-16 w-full rounded bg-slate-900 overflow-hidden border border-slate-800 flex items-center justify-center group cursor-pointer">
-                  {/* Realistic Field Texture Simulation */}
-                  <div className="absolute inset-0 bg-gradient-to-tr from-amber-950/60 via-slate-900 to-slate-800 opacity-90"></div>
-                  <div className="absolute inset-0 flex flex-col justify-end p-1.5 z-10">
-                    <span className="text-[9px] font-mono text-slate-300">Geo-tag: 27.294°N, 88.591°E</span>
-                  </div>
-                  <div className="relative z-20 w-7 h-7 rounded-full bg-black/60 backdrop-blur-sm border border-white/40 flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <Play className="w-3.5 h-3.5 text-white fill-white ml-0.5" />
-                  </div>
-                </div>
-              </div>
-
-              {/* Card 2 */}
-              <div className="bg-slate-950/70 border border-slate-800 hover:border-slate-700 rounded-lg p-2 transition-colors">
-                <div className="flex items-start gap-2">
-                  <div className="w-7 h-7 rounded-full bg-amber-600/30 border border-amber-500/60 flex items-center justify-center text-xs font-bold text-amber-300 flex-shrink-0">
-                    TB
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between text-[11px] font-mono">
-                      <span className="font-bold text-slate-200 truncate">Tashi BRO Officer</span>
-                      <span className="text-[10px] text-slate-400">10:12 IST</span>
-                    </div>
-                    <div className="text-[10px] font-mono text-amber-400">29th Mile Escarpment</div>
-                    <div className="text-[11px] text-slate-300 mt-1 italic leading-tight">
-                      &ldquo;Talus scree sliding onto road shoulder&rdquo;
-                    </div>
-                  </div>
-                </div>
-
-                {/* Embedded photo thumbnail */}
-                <div className="mt-2 relative h-16 w-full rounded bg-slate-900 overflow-hidden border border-slate-800 flex items-center justify-center group cursor-pointer">
-                  <div className="absolute inset-0 bg-gradient-to-tr from-red-950/60 via-slate-900 to-slate-800 opacity-90"></div>
-                  <div className="absolute inset-0 flex flex-col justify-end p-1.5 z-10">
-                    <span className="text-[9px] font-mono text-slate-300">Azimuth: 184° | Tilt: 44°</span>
-                  </div>
-                  <div className="relative z-20 w-7 h-7 rounded-full bg-black/60 backdrop-blur-sm border border-white/40 flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <Play className="w-3.5 h-3.5 text-white fill-white ml-0.5" />
-                  </div>
-                </div>
-              </div>
-
-              {/* Card 3 */}
-              <div className="bg-slate-950/70 border border-slate-800 hover:border-slate-700 rounded-lg p-2 transition-colors">
-                <div className="flex items-start gap-2">
-                  <div className="w-7 h-7 rounded-full bg-emerald-600/30 border border-emerald-500/60 flex items-center justify-center text-xs font-bold text-emerald-300 flex-shrink-0">
-                    PS
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between text-[11px] font-mono">
-                      <span className="font-bold text-slate-200 truncate">Pema SDRF Scout</span>
-                      <span className="text-[10px] text-slate-400">09:30 IST</span>
-                    </div>
-                    <div className="text-[10px] font-mono text-emerald-400">Singtam Bridge</div>
-                    <div className="text-[11px] text-slate-300 mt-1 italic leading-tight">
-                      &ldquo;Turbid seepage observed at culvert base&rdquo;
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-2 relative h-16 w-full rounded bg-slate-900 overflow-hidden border border-slate-800 flex items-center justify-center group cursor-pointer">
-                  <div className="absolute inset-0 bg-gradient-to-tr from-blue-950/60 via-slate-900 to-slate-800 opacity-90"></div>
-                  <div className="absolute inset-0 flex flex-col justify-end p-1.5 z-10">
-                    <span className="text-[9px] font-mono text-slate-300">Confidence: 94% Verified</span>
-                  </div>
-                  <div className="relative z-20 w-7 h-7 rounded-full bg-black/60 backdrop-blur-sm border border-white/40 flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <Play className="w-3.5 h-3.5 text-white fill-white ml-0.5" />
-                  </div>
-                </div>
-              </div>
-
-              {/* Card 4 */}
-              <div className="bg-slate-950/70 border border-slate-800 hover:border-slate-700 rounded-lg p-2 transition-colors">
-                <div className="flex items-start gap-2">
-                  <div className="w-7 h-7 rounded-full bg-purple-600/30 border border-purple-500/60 flex items-center justify-center text-xs font-bold text-purple-300 flex-shrink-0">
-                    BC
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between text-[11px] font-mono">
-                      <span className="font-bold text-slate-200 truncate">Bikram Citizen</span>
-                      <span className="text-[10px] text-slate-400">08:50 IST</span>
-                    </div>
-                    <div className="text-[10px] font-mono text-purple-400">Rangpo Chokepoint</div>
-                    <div className="text-[11px] text-slate-300 mt-1 italic leading-tight">
-                      &ldquo;Tension fissure opening along wall&rdquo;
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-2 relative h-16 w-full rounded bg-slate-900 overflow-hidden border border-slate-800 flex items-center justify-center group cursor-pointer">
-                  <div className="absolute inset-0 bg-gradient-to-tr from-purple-950/60 via-slate-900 to-slate-800 opacity-90"></div>
-                  <div className="absolute inset-0 flex flex-col justify-end p-1.5 z-10">
-                    <span className="text-[9px] font-mono text-slate-300">Flagged for Drone Survey</span>
-                  </div>
-                  <div className="relative z-20 w-7 h-7 rounded-full bg-black/60 backdrop-blur-sm border border-white/40 flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <Play className="w-3.5 h-3.5 text-white fill-white ml-0.5" />
-                  </div>
-                </div>
-              </div>
-
-            </div>
-
-            {/* Bottom Fixed CTA Button: Full-width bright blue button */}
+      {activeTab === 'FIELD SYNC' ? (
+        <main className="flex-1 flex flex-col p-4 max-w-4xl mx-auto w-full">
+          <div className="mb-3 flex items-center justify-between border-b border-slate-800 pb-2">
             <button
-              onClick={() => setIsSnapModalOpen(true)}
-              className="mt-3 w-full py-2.5 px-3 rounded-lg bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-mono text-xs font-bold tracking-wide transition-all shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2"
+              onClick={() => setActiveTab('DASHBOARD')}
+              className="px-3 py-1.5 rounded bg-slate-800 hover:bg-slate-700 border border-slate-600 text-xs font-mono font-bold text-cyan-400 flex items-center gap-1.5 transition-colors"
             >
-              <Camera className="w-4 h-4" />
-              <span>+ UPLOAD GEO-TAGGED REPORT</span>
+              <ArrowLeft className="w-4 h-4" />
+              <span>← Back to Command Center Dashboard</span>
+            </button>
+
+            <span className="text-xs font-mono text-slate-400">
+              Corridor Sector: <strong className="text-slate-200">{selectedCorridor} ({activeCorridorData.district})</strong>
+            </span>
+          </div>
+
+          <SnapAndVerify
+            isOpen={true}
+            onClose={() => setActiveTab('DASHBOARD')}
+            corridorId={selectedCorridor}
+            onReportSubmitted={handleNewReportSubmitted}
+            isFullScreenTab={true}
+          />
+        </main>
+      ) : activeTab === 'GIS MAP' ? (
+        <main className="flex-1 p-3 flex flex-col max-w-[1920px] w-full mx-auto">
+          <div className="mb-2 flex items-center justify-between">
+            <button
+              onClick={() => setActiveTab('DASHBOARD')}
+              className="px-3 py-1 rounded bg-slate-800 hover:bg-slate-700 border border-slate-600 text-xs font-mono font-bold text-cyan-400 flex items-center gap-1.5 transition-colors"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Back to Dashboard</span>
+            </button>
+            <div className="text-xs font-mono text-slate-400">
+              Interactive Full-Screen GIS | Active Corridor: <strong className="text-slate-200">{selectedCorridor}</strong>
+            </div>
+          </div>
+          <div className="flex-1 min-h-[750px]">
+            <GoogleMapsGis corridorId={selectedCorridor} isBlocked={isHighwayBlocked} />
+          </div>
+        </main>
+      ) : (
+        /* ========================================================================= */
+        /* 3. MAIN COMMAND CENTER GRID (High Data-Density Dashboard)                 */
+        /* ========================================================================= */
+        <main className="flex-1 p-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-3 max-w-[1920px] w-full mx-auto">
+
+          {/* ----------------------------------------------------------------------- */}
+          {/* COLUMN 1: System Status & IMD/GPM Weather (~18% -> col-span-2)          */}
+          {/* ----------------------------------------------------------------------- */}
+          <div className="lg:col-span-2 flex flex-col gap-3">
+            
+            {/* Timestamp Panel */}
+            <div className="bg-slate-900 border border-slate-700 rounded p-2.5 font-mono">
+              <div className="flex items-center justify-between text-[10px] text-slate-400 uppercase tracking-wider mb-1">
+                <span>Station Clock</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+              </div>
+              <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-cyan-400" />
+                <span>{currentTime}</span>
+              </div>
+              <div className="mt-0.5 text-[9px] text-slate-500">
+                Indian Standard Time (UTC+05:30)
+              </div>
+            </div>
+
+            {/* Operational Mode Card */}
+            <div className="bg-slate-900 border border-slate-700 rounded p-2.5 font-mono">
+              <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1 flex items-center justify-between font-bold">
+                <span>Operation Mode</span>
+                <span className="text-amber-400 text-[9px]">MONSOON SURGE</span>
+              </div>
+              <div className="px-2 py-1 rounded bg-slate-950 border border-slate-700 text-amber-300 text-[11px] font-bold">
+                HIGHWAY PASSABILITY: {isHighwayBlocked ? 'CRITICAL SEVERANCE' : 'CONTROLLED OPEN'}
+              </div>
+              <div className="mt-1.5 text-[10px] text-slate-400 flex items-center justify-between">
+                <span>Current Basin:</span>
+                <span className="text-slate-200 font-bold">{activeCorridorData.district}</span>
+              </div>
+            </div>
+
+            {/* Full NER Corridor Switcher (All 8 Corridors) */}
+            <div className="bg-slate-900 border border-slate-700 rounded p-2.5 font-mono">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">
+                  NER Corridor Selection
+                </span>
+                <span className="text-[9px] text-cyan-400">8 CORRIDORS</span>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-1 text-[10px]">
+                {Object.keys(CORRIDORS_DATA).map((cid) => {
+                  const isSel = selectedCorridor === cid;
+                  const item = CORRIDORS_DATA[cid];
+                  return (
+                    <button
+                      key={cid}
+                      onClick={() => setSelectedCorridor(cid)}
+                      className={`p-1.5 rounded border text-left transition-colors ${
+                        isSel
+                          ? 'bg-slate-800 border-cyan-500 text-cyan-300 font-bold'
+                          : 'bg-slate-950 border-slate-800 text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                      }`}
+                    >
+                      <div className="font-bold">{cid}</div>
+                      <div className="text-[9px] text-slate-500 truncate">{item.district}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Weather Forecast: Live IMD Doppler & NASA GPM Feed */}
+            <div className="bg-slate-900 border border-slate-700 rounded p-2.5 font-mono">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">
+                  Precipitation &amp; GPM Feed
+                </span>
+                <span className="text-[9px] text-emerald-400 flex items-center gap-1 font-bold">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                  IMD / NASA GPM
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-1.5 text-xs">
+                <div className="bg-slate-950 border border-slate-800 rounded p-1.5 flex flex-col">
+                  <div className="flex items-center justify-between text-slate-400">
+                    <CloudRain className="w-3.5 h-3.5 text-cyan-400" />
+                    <span className="text-[10px]">Dima Hasao</span>
+                  </div>
+                  <div className="text-xs font-bold text-white mt-1">48.5 mm/h</div>
+                  <div className="text-[9px] text-red-400">Saturation 91.2%</div>
+                </div>
+
+                <div className="bg-slate-950 border border-slate-800 rounded p-1.5 flex flex-col">
+                  <div className="flex items-center justify-between text-slate-400">
+                    <CloudLightning className="w-3.5 h-3.5 text-amber-400" />
+                    <span className="text-[10px]">East Khasi</span>
+                  </div>
+                  <div className="text-xs font-bold text-white mt-1">62.0 mm/h</div>
+                  <div className="text-[9px] text-red-400">Saturation 94.8%</div>
+                </div>
+
+                <div className="bg-slate-950 border border-slate-800 rounded p-1.5 flex flex-col">
+                  <div className="flex items-center justify-between text-slate-400">
+                    <Droplets className="w-3.5 h-3.5 text-blue-400" />
+                    <span className="text-[10px]">N. Sikkim</span>
+                  </div>
+                  <div className="text-xs font-bold text-white mt-1">38.0 mm/h</div>
+                  <div className="text-[9px] text-amber-400">Saturation 89.5%</div>
+                </div>
+
+                <div className="bg-slate-950 border border-slate-800 rounded p-1.5 flex flex-col">
+                  <div className="flex items-center justify-between text-slate-400">
+                    <Wind className="w-3.5 h-3.5 text-emerald-400" />
+                    <span className="text-[10px]">Aizawl</span>
+                  </div>
+                  <div className="text-xs font-bold text-white mt-1">32.5 mm/h</div>
+                  <div className="text-[9px] text-slate-400">Saturation 86.4%</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Storm Simulation Trigger */}
+            <button
+              onClick={handleToggleStormSimulation}
+              className={`w-full py-2 px-3 rounded font-mono text-xs font-bold transition-colors border flex items-center justify-center gap-1.5 ${
+                isSimulatingStorm
+                  ? 'bg-rose-950 border-rose-600 text-rose-300'
+                  : 'bg-slate-800 hover:bg-slate-700 border-slate-600 text-slate-200'
+              }`}
+            >
+              {isSimulatingStorm ? (
+                <>
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>RESET MONSOON SIMULATION</span>
+                </>
+              ) : (
+                <>
+                  <Flame className="w-3.5 h-3.5 text-amber-400" />
+                  <span>SIMULATE STORM SURGE</span>
+                </>
+              )}
             </button>
 
           </div>
 
-        </div>
+          {/* ----------------------------------------------------------------------- */}
+          {/* COLUMN 2: Full NER GIS Map (~44% -> col-span-5)                         */}
+          {/* ----------------------------------------------------------------------- */}
+          <div className="lg:col-span-5 flex flex-col min-h-[580px] h-full">
+            <GoogleMapsGis 
+              corridorId={selectedCorridor} 
+              isBlocked={isHighwayBlocked}
+            />
+          </div>
 
-      </main>
+          {/* ----------------------------------------------------------------------- */}
+          {/* COLUMN 3: Predictive Analytics & Emergency Alerts Log (~20% -> col-span-3) */}
+          {/* ----------------------------------------------------------------------- */}
+          <div className="lg:col-span-3 flex flex-col gap-3">
+            
+            {/* Predictive PINN Analytics Chart */}
+            <div className="bg-slate-900 border border-slate-700 rounded p-2.5">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 font-bold">
+                  Predictive PINN Geotech Chart
+                </span>
+                <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-red-950/80 border border-red-700 text-red-300 font-bold">
+                  MDoNER 26001
+                </span>
+              </div>
+
+              {/* Upgraded Multi-Variable Recharts Component */}
+              <PredictiveChart />
+            </div>
+
+            {/* Emergency Alerts Log Intimation (Constraint 5) */}
+            <div className="bg-slate-900 border border-slate-700 rounded p-2.5 flex-1 flex flex-col font-mono">
+              <div className="flex items-center justify-between mb-2 border-b border-slate-800 pb-1.5">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-red-500"></span>
+                  <span className="text-[10px] uppercase tracking-wider text-slate-300 font-bold">
+                    Emergency Alerts Log Intimation
+                  </span>
+                </div>
+                <span className="text-[9px] text-cyan-400 font-bold">SIP/SMS GATEWAY</span>
+              </div>
+
+              {/* Dynamic Scrollable Dispatch Feed */}
+              <div className="space-y-1.5 overflow-y-auto max-h-[220px] pr-1 flex-1">
+                {alertsLog.map((alert) => {
+                  const isCrit = alert.tier === 'CRITICAL';
+                  return (
+                    <div 
+                      key={alert.id}
+                      className={`p-2 rounded border text-xs leading-relaxed ${
+                        isCrit 
+                          ? 'bg-red-950/40 border-red-800/70 text-red-200' 
+                          : 'bg-amber-950/30 border-amber-800/60 text-amber-200'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between text-[10px] font-bold mb-0.5">
+                        <span className={isCrit ? 'text-red-400' : 'text-amber-400'}>
+                          [{alert.tier} | {alert.district} | {alert.timestamp}]
+                        </span>
+                        <span className="text-slate-400 text-[9px]">{alert.dialects.join('/')}</span>
+                      </div>
+                      <div className="text-[11px] text-slate-300 font-normal">
+                        {alert.summary}
+                      </div>
+                      <div className="mt-1 flex items-center gap-2 text-[9px] text-slate-400">
+                        <span>Channels: <strong>{alert.channels.join(', ')}</strong></span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Bypass Rerouting Tactical Card */}
+            <div className="bg-slate-900 border border-slate-700 rounded p-2.5 font-mono">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">
+                  Tactical Convoy Bypass Routing
+                </span>
+                <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-950 border border-emerald-700 text-emerald-300 font-bold">
+                  CLEAR ROUTE
+                </span>
+              </div>
+
+              <div className="text-[11px] text-slate-300">
+                <span className="text-slate-400">Active Corridor: </span>
+                <strong className="text-white">{activeCorridorData.name}</strong>
+              </div>
+              <div className="text-[10px] text-cyan-400 mt-0.5">
+                Bypass: {activeCorridorData.bypass.name}
+              </div>
+
+              <div className="mt-2 flex items-center justify-between text-[10px]">
+                <span className="text-slate-400">Distance: <strong>{activeCorridorData.bypass.distanceKm} km</strong></span>
+                <button
+                  onClick={handleExportBypassGeoJSON}
+                  className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 border border-slate-600 text-cyan-300 flex items-center gap-1 text-[10px] font-bold transition-colors"
+                >
+                  <Download className="w-3 h-3" />
+                  Export GeoJSON
+                </button>
+              </div>
+            </div>
+
+          </div>
+
+          {/* ----------------------------------------------------------------------- */}
+          {/* COLUMN 4: Field Reports & Citizen Media Sync (~18% -> col-span-2)       */}
+          {/* ----------------------------------------------------------------------- */}
+          <div className="lg:col-span-2 flex flex-col gap-3 font-mono">
+            
+            <div className="bg-slate-900 border border-slate-700 rounded p-2.5 flex-1 flex flex-col">
+              
+              {/* Header */}
+              <div className="flex items-center justify-between mb-2 border-b border-slate-800 pb-1.5">
+                <span className="text-[10px] uppercase tracking-wider text-slate-300 font-bold">
+                  Field Reports &amp; Media
+                </span>
+                <span className="text-[9px] text-emerald-400 font-bold">
+                  {fieldReports.length} REPORTS
+                </span>
+              </div>
+
+              {/* Action Bar */}
+              <div className="bg-slate-950 border border-slate-800 rounded px-2 py-1 flex items-center justify-between mb-2">
+                <span className="text-[10px] text-cyan-400 flex items-center gap-1">
+                  <MapPin className="w-3 h-3" />
+                  + Geotagged Media
+                </span>
+                <span className="text-[9px] text-slate-500">EXIF Validated</span>
+              </div>
+
+              {/* Dynamic Scrollable Reports Feed */}
+              <div className="space-y-2 overflow-y-auto flex-1 pr-1 max-h-[460px]">
+                {fieldReports.map((rep) => (
+                  <div 
+                    key={rep.report_id}
+                    className="bg-slate-950 border border-slate-800 hover:border-slate-700 rounded p-2 transition-colors"
+                  >
+                    <div className="flex items-start justify-between text-[11px] mb-1">
+                      <span className="font-bold text-slate-200 truncate">{rep.reporter_name}</span>
+                      <span className="text-[10px] text-slate-400">{rep.timestamp}</span>
+                    </div>
+
+                    <div className="text-[10px] text-cyan-400 flex items-center justify-between">
+                      <span>{rep.location_name}</span>
+                      <span className={`px-1 rounded text-[9px] font-bold ${
+                        rep.severity === 'CRITICAL' ? 'bg-red-950 text-red-300 border border-red-800' : 'bg-slate-800 text-slate-300'
+                      }`}>
+                        {rep.severity}
+                      </span>
+                    </div>
+
+                    <div className="text-[10px] text-slate-300 mt-1 italic leading-tight">
+                      &ldquo;{rep.notes}&rdquo;
+                    </div>
+
+                    {/* Media Thumbnail / Video Tag */}
+                    <div className="mt-1.5 relative h-16 w-full rounded bg-slate-900 border border-slate-800 overflow-hidden flex items-center justify-center">
+                      <div className="absolute inset-0 bg-slate-800/80 flex flex-col justify-end p-1 z-10">
+                        <span className="text-[9px] text-slate-300">
+                          {rep.latitude.toFixed(3)}°N, {rep.longitude.toFixed(3)}°E
+                        </span>
+                      </div>
+
+                      {rep.media_type === 'video' ? (
+                        <div className="relative z-20 flex items-center gap-1 bg-slate-950/80 px-2 py-0.5 rounded border border-slate-700 text-[10px] text-cyan-300 font-bold">
+                          <Film className="w-3 h-3 text-cyan-400" />
+                          <span>MP4 VIDEO</span>
+                        </div>
+                      ) : (
+                        <div className="relative z-20 flex items-center gap-1 bg-slate-950/80 px-2 py-0.5 rounded border border-slate-700 text-[10px] text-slate-300">
+                          <Camera className="w-3 h-3 text-slate-400" />
+                          <span>EXIF STAMPED</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Upload Report CTA Button */}
+              <button
+                onClick={() => setIsSnapModalOpen(true)}
+                className="mt-2.5 w-full py-2 px-3 rounded bg-cyan-700 hover:bg-cyan-600 text-white font-mono text-xs font-bold tracking-wide transition-colors border border-cyan-500 flex items-center justify-center gap-1.5"
+              >
+                <Camera className="w-3.5 h-3.5" />
+                <span>+ UPLOAD GEOTAGGED REPORT</span>
+              </button>
+
+            </div>
+
+          </div>
+
+        </main>
+      )}
 
       {/* ========================================================================= */}
-      {/* 6. BOTTOM STICKY FOOTER BAR                                               */}
+      {/* 4. BOTTOM PERSISTENT FOOTER BAR                                           */}
       {/* ========================================================================= */}
-      <footer className="fixed bottom-0 left-0 right-0 h-8 bg-slate-950/95 backdrop-blur-md border-t border-slate-800 px-4 flex items-center justify-between text-[11px] font-mono z-40">
+      <footer className="fixed bottom-0 left-0 right-0 h-7 bg-slate-950 border-t border-slate-800 px-4 flex items-center justify-between text-[10px] font-mono z-40">
         
         {/* Left: System Health Indicators */}
-        <div className="flex items-center gap-4 text-slate-400 overflow-x-auto whitespace-nowrap">
+        <div className="flex items-center gap-4 text-slate-400">
           <div className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-            <span>PINN SOLVER: <strong className="text-slate-200">OPERATIONAL (LATENCY 42ms)</strong></span>
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+            <span>PINN SOLVER: <strong className="text-slate-200">OPERATIONAL (38ms)</strong></span>
           </div>
           <span className="text-slate-700">|</span>
           <div className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-cyan-400"></span>
-            <span>SAR COHERENCE: <strong className="text-slate-200">98.4%</strong></span>
+            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
+            <span>SAR COHERENCE: <strong className="text-slate-200">98.2%</strong></span>
           </div>
           <span className="text-slate-700 hidden sm:inline">|</span>
           <div className="hidden sm:flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-            <span>VOELLMY-SALM: <strong className="text-slate-200">READY</strong></span>
-          </div>
-          <span className="text-slate-700 hidden md:inline">|</span>
-          <div className="hidden md:flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-blue-400"></span>
-            <span>POSTGIS: <strong className="text-slate-200">CONNECTED</strong></span>
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+            <span>VOELLMY-SALM: <strong className="text-slate-200">CALIBRATED</strong></span>
           </div>
         </div>
 
-        {/* Right: Connectivity Status Badge */}
-        <div className="flex items-center gap-2 pl-3 border-l border-slate-800 flex-shrink-0">
-          <div className="flex items-center gap-1.5 text-emerald-400 font-semibold text-[10px] sm:text-[11px]">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-            <span>OFFLINE SYNC: ENABLED | NETWORK: LOW (Constraints d/e/low network/offline)</span>
+        {/* Right: Offline / Low-bandwidth network status */}
+        <div className="flex items-center gap-2 text-slate-400">
+          <div className="flex items-center gap-1 text-emerald-400 font-bold">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+            <span>LOW NETWORK ADAPTIVE: ONLINE</span>
           </div>
         </div>
 
       </footer>
 
-      {/* Snap & Verify Offline PWA Modal */}
+      {/* Snap & Verify Modal */}
       <SnapAndVerify 
         isOpen={isSnapModalOpen} 
         onClose={() => setIsSnapModalOpen(false)} 
         corridorId={selectedCorridor}
+        onReportSubmitted={handleNewReportSubmitted}
       />
 
     </div>

@@ -22,6 +22,11 @@ NER_BOUNDING_BOX = [87.50, 21.50, 97.50, 29.50]
 SIKKIM_NH10_BBOX = [88.35, 26.70, 88.75, 27.45]
 NAGALAND_NH29_BBOX = [93.70, 25.60, 94.25, 25.95]
 MEGHALAYA_NH6_BBOX = [91.80, 25.10, 92.40, 25.75]
+DIMA_HASAO_NH27_BBOX = [92.60, 24.80, 93.30, 25.80]
+EAST_KHASI_SH5_BBOX = [91.65, 25.10, 92.10, 25.65]
+NORTH_SIKKIM_NH310A_BBOX = [88.45, 27.45, 88.75, 27.80]
+AIZAWL_NH306_BBOX = [92.60, 23.65, 92.85, 24.85]
+TAWANG_NH13_BBOX = [91.80, 27.00, 92.70, 27.65]
 
 class SarDataService:
     def __init__(self):
@@ -286,7 +291,7 @@ class SarDataService:
                     ]]
                 }
             },
-            # 5. Nagaland & Meghalaya corridors (feeder deformation polygons)
+            # 5. Nagaland corridor: Pagla Pahar Gorge Chokepoint (NH-29)
             {
                 "type": "Feature",
                 "id": "sar-crit-paglapahar",
@@ -317,19 +322,217 @@ class SarDataService:
                         [93.850, 25.750]
                     ]]
                 }
+            },
+            # 6. Dima Hasao (Assam): Haflong Hill Cut & Jatinga Valley (NH-27)
+            {
+                "type": "Feature",
+                "id": "sar-crit-dimahasao-haflong",
+                "properties": {
+                    "name": "Haflong - Jatinga Valley Mudflow Basin",
+                    "corridor": "NH-27",
+                    "threat_tier": "CRITICAL",
+                    "risk_color": "#ef4444",
+                    "fill_color": "#ef4444",
+                    "fill_opacity": 0.68,
+                    "stroke_color": "#b91c1c",
+                    "stroke_weight": 2.5,
+                    "los_velocity_mm_year": round(-28.6 + jitter, 1),
+                    "creep_rate_mm_day": 0.38,
+                    "pore_pressure_kpa": 51.4,
+                    "coherence": 0.93,
+                    "sensor_platform": "Sentinel-1C / InSAR C-Band",
+                    "orbit_pass": "Ascending Track 048",
+                    "description": "Critical deep-seated rotational slump threatening NH-27 and railway lifeline in Dima Hasao."
+                },
+                "geometry": {
+                    "type": "Polygon",
+                    "coordinates": [[
+                        [93.010, 25.150],
+                        [93.045, 25.180],
+                        [93.060, 25.165],
+                        [93.025, 25.135],
+                        [93.010, 25.150]
+                    ]]
+                }
+            },
+            # 7. East Khasi Hills (Meghalaya): Mawkdok Dympep Gorge & Sohra Rim (SH-5)
+            {
+                "type": "Feature",
+                "id": "sar-crit-sohra-mawkdok",
+                "properties": {
+                    "name": "Mawkdok Dympep Gorge Escarpment",
+                    "corridor": "SH-5",
+                    "threat_tier": "CRITICAL",
+                    "risk_color": "#ef4444",
+                    "fill_color": "#ef4444",
+                    "fill_opacity": 0.65,
+                    "stroke_color": "#b91c1c",
+                    "stroke_weight": 2.5,
+                    "los_velocity_mm_year": round(-22.1 + jitter, 1),
+                    "creep_rate_mm_day": 0.29,
+                    "pore_pressure_kpa": 49.8,
+                    "coherence": 0.95,
+                    "sensor_platform": "NISAR / L-Band SAR",
+                    "orbit_pass": "Descending Track 121",
+                    "description": "High saturation induced shear failure along canyon rim near Sohra (Cherrapunji)."
+                },
+                "geometry": {
+                    "type": "Polygon",
+                    "coordinates": [[
+                        [91.740, 25.340],
+                        [91.775, 25.370],
+                        [91.790, 25.355],
+                        [91.755, 25.325],
+                        [91.740, 25.340]
+                    ]]
+                }
+            },
+            # 8. North Sikkim: Chungthang Teesta Headwaters Breach (NH-310A)
+            {
+                "type": "Feature",
+                "id": "sar-crit-northsikkim-chungthang",
+                "properties": {
+                    "name": "Chungthang Dam Breach & Moraine Slump",
+                    "corridor": "NH-310A",
+                    "threat_tier": "CRITICAL",
+                    "risk_color": "#ef4444",
+                    "fill_color": "#ef4444",
+                    "fill_opacity": 0.70,
+                    "stroke_color": "#b91c1c",
+                    "stroke_weight": 2.5,
+                    "los_velocity_mm_year": round(-26.3 + jitter, 1),
+                    "creep_rate_mm_day": 0.35,
+                    "pore_pressure_kpa": 53.0,
+                    "coherence": 0.90,
+                    "sensor_platform": "Sentinel-1A / InSAR C-Band",
+                    "orbit_pass": "Descending Track 121",
+                    "description": "Glacial lake outburst flood (GLOF) residual instability & active toe scour."
+                },
+                "geometry": {
+                    "type": "Polygon",
+                    "coordinates": [[
+                        [88.630, 27.590],
+                        [88.665, 27.620],
+                        [88.675, 27.605],
+                        [88.640, 27.575],
+                        [88.630, 27.590]
+                    ]]
+                }
+            },
+            # 9. Mizoram: Sairang Valley Slump (NH-306 / Aizawl)
+            {
+                "type": "Feature",
+                "id": "sar-high-aizawl-sairang",
+                "properties": {
+                    "name": "Sairang Valley Regolith Slump",
+                    "corridor": "NH-306",
+                    "threat_tier": "HIGH",
+                    "risk_color": "#f97316",
+                    "fill_color": "#f97316",
+                    "fill_opacity": 0.55,
+                    "stroke_color": "#c2410c",
+                    "stroke_weight": 2.0,
+                    "los_velocity_mm_year": round(-16.8 + jitter * 0.4, 1),
+                    "creep_rate_mm_day": 0.19,
+                    "pore_pressure_kpa": 38.2,
+                    "coherence": 0.92,
+                    "sensor_platform": "Sentinel-1C / InSAR C-Band",
+                    "orbit_pass": "Ascending Track 092",
+                    "description": "Progressive shale regolith slide encroaching on Aizawl lifeline artery."
+                },
+                "geometry": {
+                    "type": "Polygon",
+                    "coordinates": [[
+                        [92.650, 23.790],
+                        [92.685, 23.820],
+                        [92.695, 23.805],
+                        [92.660, 23.775],
+                        [92.650, 23.790]
+                    ]]
+                }
+            },
+            # 10. Arunachal Pradesh: Sela Pass Scree & Snowslip (NH-13 / Tawang)
+            {
+                "type": "Feature",
+                "id": "sar-high-tawang-sela",
+                "properties": {
+                    "name": "Sela Pass High-Altitude Talus Slump",
+                    "corridor": "NH-13",
+                    "threat_tier": "HIGH",
+                    "risk_color": "#f97316",
+                    "fill_color": "#f97316",
+                    "fill_opacity": 0.55,
+                    "stroke_color": "#c2410c",
+                    "stroke_weight": 2.0,
+                    "los_velocity_mm_year": round(-15.4 + jitter * 0.3, 1),
+                    "creep_rate_mm_day": 0.17,
+                    "pore_pressure_kpa": 36.5,
+                    "coherence": 0.94,
+                    "sensor_platform": "NISAR / L-Band SAR",
+                    "orbit_pass": "Descending Track 048",
+                    "description": "Permafrost freeze-thaw degradation & steep granitic talus movement."
+                },
+                "geometry": {
+                    "type": "Polygon",
+                    "coordinates": [[
+                        [92.090, 27.490],
+                        [92.125, 27.520],
+                        [92.135, 27.505],
+                        [92.100, 27.475],
+                        [92.090, 27.490]
+                    ]]
+                }
+            },
+            # 11. Meghalaya: Sonapur Tunnel Mudflow (NH-6)
+            {
+                "type": "Feature",
+                "id": "sar-crit-sonapur-tunnel",
+                "properties": {
+                    "name": "Sonapur Tunnel Mudflow Chokepoint",
+                    "corridor": "NH-6",
+                    "threat_tier": "CRITICAL",
+                    "risk_color": "#ef4444",
+                    "fill_color": "#ef4444",
+                    "fill_opacity": 0.65,
+                    "stroke_color": "#b91c1c",
+                    "stroke_weight": 2.5,
+                    "los_velocity_mm_year": round(-23.4 + jitter, 1),
+                    "creep_rate_mm_day": 0.31,
+                    "pore_pressure_kpa": 47.9,
+                    "coherence": 0.91,
+                    "sensor_platform": "Sentinel-1A / InSAR C-Band",
+                    "orbit_pass": "Descending Track 077",
+                    "description": "Recurrent heavy slurry mudflow blocking Silchar lifeline portal."
+                },
+                "geometry": {
+                    "type": "Polygon",
+                    "coordinates": [[
+                        [92.345, 25.095],
+                        [92.380, 25.125],
+                        [92.395, 25.110],
+                        [92.360, 25.080],
+                        [92.345, 25.095]
+                    ]]
+                }
             }
         ]
+
+        # Filter by corridor if requested and valid
+        if corridor_id and corridor_id.upper() != "ALL":
+            corridor_features = [f for f in features if f["properties"].get("corridor") == corridor_id]
+            if corridor_features:
+                features = corridor_features
 
         return {
             "type": "FeatureCollection",
             "metadata": {
                 "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-                "provider": "Sentinel Hub & Copernicus Data Space Ecosystem",
-                "wavelength": "5.546 cm (C-Band)",
+                "provider": "Sentinel Hub, Copernicus Data Space Ecosystem & NISAR",
+                "wavelength": "5.546 cm (C-Band) & 24 cm (L-Band)",
                 "polarization": "VV + VH Interferometric Wide (IW)",
                 "corridor_id": corridor_id,
                 "total_features": len(features),
-                "high_risk_features": 2,
+                "high_risk_features": len([f for f in features if f["properties"].get("threat_tier") == "CRITICAL"]),
                 "status": "ACTIVE_MONITORING"
             },
             "features": features

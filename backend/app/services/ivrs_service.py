@@ -39,6 +39,74 @@ class RegionalIVRSEngine:
         }
     }
 
+    DISPATCH_HISTORY: List[Dict[str, Any]] = [
+        {
+            "id": "disp-001",
+            "tier": "CRITICAL",
+            "district": "Dima Hasao",
+            "corridor": "NH-27",
+            "location": "Haflong - Jatinga Valley",
+            "timestamp": "09:45 IST",
+            "dialects": ["Assamese", "English"],
+            "targets": ["SDRF 3rd Bn", "Local Village Defense Parties (VDP)", "NF Railway HQ"],
+            "channels": ["SIP IVRS Outbound", "Bulk SMS", "CAP-CP"],
+            "summary": "[CRITICAL | Dima Hasao | 09:45 IST] IVRS & SMS dispatched to SDRF and Local Villages",
+            "status": "DELIVERED_ACKNOWLEDGED"
+        },
+        {
+            "id": "disp-002",
+            "tier": "CRITICAL",
+            "district": "East Khasi Hills",
+            "corridor": "SH-5",
+            "location": "Mawkdok Dympep Gorge",
+            "timestamp": "09:15 IST",
+            "dialects": ["Khasi", "English"],
+            "targets": ["Meghalaya State Disaster Management (MSDMA)", "Sohra Police Outpost"],
+            "channels": ["SIP Automated Call", "SMS Gateway"],
+            "summary": "[CRITICAL | East Khasi Hills | 09:15 IST] IVRS & SMS dispatched to SDRF and Local Villages",
+            "status": "DELIVERED"
+        },
+        {
+            "id": "disp-003",
+            "tier": "HIGH",
+            "district": "North Sikkim",
+            "corridor": "NH-310A",
+            "location": "Chungthang Headwaters",
+            "timestamp": "08:50 IST",
+            "dialects": ["Nepali", "English"],
+            "targets": ["BRO Project Swastik", "District Disaster Officer Mangan"],
+            "channels": ["SMS Broadcast", "VHF Relay"],
+            "summary": "[HIGH | North Sikkim | 08:50 IST] Soil saturation 91%. Pre-emptive traffic diversion intimation dispatched",
+            "status": "DELIVERED"
+        },
+        {
+            "id": "disp-004",
+            "tier": "CRITICAL",
+            "district": "Sikkim (NH-10)",
+            "corridor": "NH-10",
+            "location": "29th Mile (Teesta Gorge)",
+            "timestamp": "08:10 IST",
+            "dialects": ["Nepali", "Hindi", "English"],
+            "targets": ["SDRF Gangtok", "NDRF 2nd Bn", "BRO Project Dantak"],
+            "channels": ["SIP IVRS Broadcast", "SMS Gateway", "Disaster Alert API"],
+            "summary": "[CRITICAL | NH-10 Teesta | 08:10 IST] IVRS & SMS dispatched to SDRF and Local Villages",
+            "status": "DELIVERED_ACKNOWLEDGED"
+        },
+        {
+            "id": "disp-005",
+            "tier": "HIGH",
+            "district": "Aizawl",
+            "corridor": "NH-306",
+            "location": "Sairang Hill Incline",
+            "timestamp": "07:30 IST",
+            "dialects": ["Mizo", "English"],
+            "targets": ["Disaster Management Aizawl", "Young Mizo Association (YMA)"],
+            "channels": ["SMS Gateway", "Local Radio"],
+            "summary": "[HIGH | Aizawl | 07:30 IST] IVRS & SMS dispatched to SDRF and Local Villages",
+            "status": "DELIVERED"
+        }
+    ]
+
     @classmethod
     def generate_dispatch_payload(
         cls,
@@ -56,3 +124,38 @@ class RegionalIVRSEngine:
             "sms_text": dialect["sms_template"].format(corridor=corridor_id, bypass=bypass_name, location=location),
             "dispatched": True
         }
+
+    @classmethod
+    def log_dispatch(
+        cls,
+        district: str,
+        corridor: str,
+        location: str,
+        tier: str = "CRITICAL",
+        dialects: List[str] = None
+    ) -> Dict[str, Any]:
+        import time
+        from datetime import datetime
+        now_str = datetime.now().strftime("%H:%M IST")
+        new_id = f"disp-{int(time.time())}"
+        langs = dialects or ["Assamese", "English"]
+        entry = {
+            "id": new_id,
+            "tier": tier,
+            "district": district,
+            "corridor": corridor,
+            "location": location,
+            "timestamp": now_str,
+            "dialects": langs,
+            "targets": ["SDRF Regional Wing", "Local Villages & Panchayats", "District Disaster Management"],
+            "channels": ["SIP IVRS Outbound", "SMS Gateway", "CAP-CP Common Alert"],
+            "summary": f"[{tier} | {district} | {now_str}] IVRS & SMS dispatched to SDRF and Local Villages",
+            "status": "DELIVERED_ACKNOWLEDGED"
+        }
+        cls.DISPATCH_HISTORY.insert(0, entry)
+        return entry
+
+    @classmethod
+    def get_dispatch_history(cls) -> List[Dict[str, Any]]:
+        return cls.DISPATCH_HISTORY
+
