@@ -199,32 +199,46 @@ export const SnapAndVerify: React.FC<SnapAndVerifyProps> = ({
   };
 
   const content = (
-    <div className="bg-slate-900 border border-slate-700 rounded-lg w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col font-mono text-slate-100">
+    <div className={isFullScreenTab 
+      ? "bg-white/50 backdrop-blur-2xl border border-white/70 rounded-2xl w-full max-w-5xl overflow-hidden shadow-2xl flex flex-col font-mono text-slate-800" 
+      : "bg-slate-900 border border-slate-700 rounded-lg w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col font-mono text-slate-100"
+    }>
       
       {/* Header Bar */}
-      <div className="px-5 py-3 border-b border-slate-700 flex items-center justify-between bg-slate-950">
+      <div className={isFullScreenTab 
+        ? "px-6 py-4 border-b border-white/40 flex items-center justify-between bg-white/40 backdrop-blur-md" 
+        : "px-5 py-3 border-b border-slate-700 flex items-center justify-between bg-slate-950"
+      }>
         <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={onClose}
-            className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 border border-slate-600 text-xs font-bold text-cyan-400 flex items-center gap-1.5 transition-colors"
+            className={isFullScreenTab 
+              ? "px-3 py-1.5 rounded-lg bg-white/70 hover:bg-white border border-slate-300 text-xs font-bold text-blue-900 flex items-center gap-1.5 transition shadow-sm" 
+              : "px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 border border-slate-600 text-xs font-bold text-cyan-400 flex items-center gap-1.5 transition-colors"
+            }
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             <span>Back to Dashboard</span>
           </button>
-          <div className="h-4 w-[1px] bg-slate-700"></div>
+          <div className="h-4 w-[1px] bg-slate-300/60"></div>
           <div>
-            <h3 className="font-bold text-xs uppercase tracking-wider text-white flex items-center gap-1.5">
-              <Camera className="w-3.5 h-3.5 text-cyan-400" />
+            <h3 className={isFullScreenTab 
+              ? "font-bold text-sm uppercase tracking-wider text-slate-900 flex items-center gap-2" 
+              : "font-bold text-xs uppercase tracking-wider text-white flex items-center gap-1.5"
+            }>
+              <Camera className={isFullScreenTab ? "w-4 h-4 text-blue-800" : "w-3.5 h-3.5 text-cyan-400"} />
               <span>Snap &amp; Verify Field Sync</span>
             </h3>
-            <p className="text-[10px] text-slate-400">Corridor {corridorId} | Offline-Ready Hardware Geotagging</p>
+            <p className={isFullScreenTab ? "text-xs text-slate-600" : "text-[10px] text-slate-400"}>
+              Corridor {corridorId} | Offline-Ready Hardware Geotagging &amp; AI Verification
+            </p>
           </div>
         </div>
 
         <button
           onClick={onClose}
-          className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 transition"
+          className={isFullScreenTab ? "p-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-white/60 transition" : "p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 transition"}
         >
           <X className="w-4 h-4" />
         </button>
