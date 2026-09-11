@@ -1,0 +1,855 @@
+/* ======================================================================
+   TERRACAST-NER — Command Center Layout & Component Styles
+   CSS Module: scoped classes for the main dashboard page
+   ====================================================================== */
+
+/* ── Page Shell ──────────────────────────────────────────────────────── */
+.shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  user-select: none;
+  padding-bottom: 36px; /* footer clearance */
+}
+
+/* ── Persistent Header ───────────────────────────────────────────────── */
+.header {
+  height: 48px;
+  background: var(--card-bg-solid);
+  backdrop-filter: var(--card-blur);
+  border-bottom: 1px solid var(--slate-700);
+  padding: 0 var(--sp-4);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.headerLeft {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.logoBox {
+  width: 28px;
+  height: 28px;
+  background: var(--slate-800);
+  border: 1px solid var(--slate-600);
+  border-radius: var(--card-radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logoText {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  color: var(--slate-50);
+}
+
+.headerDivider {
+  width: 1px;
+  height: 16px;
+  background: var(--slate-700);
+}
+
+.headerSubtitle {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--slate-400);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* ── Navigation Tabs ─────────────────────────────────────────────────── */
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--slate-950);
+  border: 1px solid var(--slate-800);
+  padding: 2px;
+  border-radius: var(--card-radius);
+}
+
+.navTab {
+  padding: 4px 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 3px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all var(--duration) var(--ease-out);
+  color: var(--slate-400);
+  background: transparent;
+}
+
+.navTab:hover {
+  color: var(--slate-200);
+  background: var(--slate-900);
+}
+
+.navTabActive {
+  composes: navTab;
+  background: var(--slate-800);
+  color: var(--cyan-400);
+  border-color: var(--slate-600);
+}
+
+/* ── Header Right Controls ───────────────────────────────────────────── */
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.alertsBadge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--card-radius);
+  background: rgba(69, 10, 10, 0.7);
+  border: 1px solid var(--red-700);
+  color: var(--red-400);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.adminBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--card-radius);
+  background: var(--slate-800);
+  border: 1px solid var(--slate-700);
+  color: var(--slate-200);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  cursor: pointer;
+  transition: background var(--duration) var(--ease-out);
+}
+
+.adminBtn:hover {
+  background: var(--slate-700);
+}
+
+.dropdown {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  margin-top: 4px;
+  width: 224px;
+  background: var(--card-bg-solid);
+  backdrop-filter: var(--card-blur);
+  border: 1px solid var(--slate-700);
+  border-radius: var(--card-radius);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+  padding: 4px 0;
+  z-index: 50;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.dropdownHeader {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--slate-800);
+  color: var(--slate-400);
+  font-size: 11px;
+}
+
+.dropdownLabel {
+  padding: 4px 12px;
+  font-size: 9px;
+  color: var(--slate-500);
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.dropdownItem {
+  width: 100%;
+  text-align: left;
+  padding: 4px 12px;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--slate-300);
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  font-family: var(--font-mono);
+  transition: background var(--duration) var(--ease-out);
+}
+
+.dropdownItem:hover {
+  background: var(--slate-800);
+}
+
+.dropdownItemActive {
+  composes: dropdownItem;
+  color: var(--cyan-400);
+  font-weight: 700;
+  background: rgba(30, 41, 59, 0.6);
+}
+
+/* ── Main Content Area ───────────────────────────────────────────────── */
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  padding: var(--sp-4);
+  max-width: 1920px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* ── Hero GIS Map (Landscape Mode) ───────────────────────────────────── */
+.heroMap {
+  width: 100%;
+  height: 58vh;
+  min-height: 420px;
+  border: 1px solid var(--slate-700);
+  border-radius: var(--card-radius);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+/* ── Data Dashboard Grid (3 columns) ─────────────────────────────────── */
+.dataGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-4);
+  align-items: start;
+}
+
+@media (max-width: 1024px) {
+  .dataGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 1025px) and (max-width: 1440px) {
+  .dataGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* ── Column Containers ───────────────────────────────────────────────── */
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+/* ── Glassmorphic Card ───────────────────────────────────────────────── */
+.card {
+  background: var(--card-bg);
+  backdrop-filter: var(--card-blur);
+  -webkit-backdrop-filter: var(--card-blur);
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-radius);
+  padding: var(--sp-3);
+  font-family: var(--font-mono);
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--sp-2);
+  font-family: var(--font-mono);
+}
+
+.cardTitle {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--slate-400);
+  font-weight: 600;
+}
+
+.cardBadge {
+  font-size: 9px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 2px;
+}
+
+.badgeCyan {
+  composes: cardBadge;
+  color: var(--cyan-400);
+}
+
+.badgeEmerald {
+  composes: cardBadge;
+  background: rgba(4, 120, 87, 0.2);
+  border: 1px solid var(--emerald-700);
+  color: var(--emerald-400);
+}
+
+.badgeRed {
+  composes: cardBadge;
+  background: rgba(69, 10, 10, 0.6);
+  border: 1px solid var(--red-700);
+  color: var(--red-400);
+}
+
+/* ── Clock ───────────────────────────────────────────────────────────── */
+.clockRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--slate-50);
+}
+
+.clockSub {
+  font-size: 9px;
+  color: var(--slate-500);
+  margin-top: 2px;
+}
+
+/* ── Dot Indicator ───────────────────────────────────────────────────── */
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.dotSm {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.dotGreen  { background: var(--status-normal); }
+.dotCyan   { background: var(--cyan-400); }
+.dotRed    { background: var(--status-critical); }
+.dotAmber  { background: var(--status-advisory); }
+
+/* ── Operational Mode ────────────────────────────────────────────────── */
+.opModeTag {
+  font-size: 9px;
+  color: var(--amber-400);
+  font-weight: 600;
+}
+
+.opModeStatus {
+  padding: 4px 8px;
+  border-radius: 3px;
+  background: var(--slate-950);
+  border: 1px solid var(--slate-700);
+  color: var(--amber-300);
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+}
+
+.metaRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--slate-400);
+  margin-top: 6px;
+}
+
+/* ── Corridor Selector Grid ──────────────────────────────────────────── */
+.corridorGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 4px;
+  font-size: 10px;
+}
+
+.corridorBtn {
+  padding: 6px;
+  border-radius: 3px;
+  border: 1px solid var(--slate-800);
+  background: var(--slate-950);
+  color: var(--slate-400);
+  text-align: left;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  transition: all var(--duration) var(--ease-out);
+}
+
+.corridorBtn:hover {
+  background: var(--slate-800);
+  color: var(--slate-200);
+}
+
+.corridorBtnActive {
+  composes: corridorBtn;
+  background: var(--slate-800);
+  border-color: var(--cyan-500);
+  color: var(--cyan-400);
+  font-weight: 700;
+}
+
+.corridorBtnLabel {
+  font-weight: 600;
+}
+
+.corridorBtnSub {
+  font-size: 9px;
+  color: var(--slate-500);
+}
+
+/* ── Weather Grid ────────────────────────────────────────────────────── */
+.weatherGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+  font-size: 11px;
+}
+
+.weatherCell {
+  background: var(--slate-950);
+  border: 1px solid var(--slate-800);
+  border-radius: 3px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+}
+
+.weatherCellHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--slate-400);
+  font-size: 10px;
+}
+
+.weatherVal {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--slate-50);
+  margin-top: 4px;
+}
+
+.weatherSat {
+  font-size: 9px;
+  font-weight: 500;
+}
+
+.weatherSatDanger { color: var(--red-400); }
+.weatherSatWarn   { color: var(--amber-400); }
+.weatherSatOk     { color: var(--slate-400); }
+
+/* ── Simulation Button ───────────────────────────────────────────────── */
+.simBtn {
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: var(--card-radius);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all var(--duration) var(--ease-out);
+}
+
+.simBtnIdle {
+  composes: simBtn;
+  background: var(--slate-800);
+  border: 1px solid var(--slate-600);
+  color: var(--slate-200);
+}
+
+.simBtnIdle:hover {
+  background: var(--slate-700);
+}
+
+.simBtnActive {
+  composes: simBtn;
+  background: rgba(69, 10, 10, 0.7);
+  border: 1px solid rgba(185, 28, 28, 0.7);
+  color: var(--red-400);
+}
+
+/* ── Alert Dispatch Feed ─────────────────────────────────────────────── */
+.alertFeed {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+  max-height: 280px;
+  padding-right: 4px;
+}
+
+.alertItem {
+  padding: 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.alertItemCritical {
+  composes: alertItem;
+  background: rgba(69, 10, 10, 0.35);
+  border: 1px solid rgba(185, 28, 28, 0.5);
+  color: rgba(248, 113, 113, 0.85);
+}
+
+.alertItemHigh {
+  composes: alertItem;
+  background: rgba(69, 42, 10, 0.25);
+  border: 1px solid rgba(180, 120, 50, 0.4);
+  color: rgba(251, 191, 36, 0.85);
+}
+
+.alertMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 10px;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.alertSummary {
+  font-size: 11px;
+  color: var(--slate-300);
+  font-weight: 300;
+}
+
+.alertChannels {
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 9px;
+  color: var(--slate-400);
+}
+
+/* ── Field Reports Feed ──────────────────────────────────────────────── */
+.reportsFeed {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  max-height: 320px;
+  padding-right: 4px;
+  flex: 1;
+}
+
+.reportCard {
+  background: var(--slate-950);
+  border: 1px solid var(--slate-800);
+  border-radius: 3px;
+  padding: 8px;
+  transition: border-color var(--duration) var(--ease-out);
+}
+
+.reportCard:hover {
+  border-color: var(--slate-700);
+}
+
+.reportHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  font-size: 11px;
+  margin-bottom: 4px;
+}
+
+.reportName {
+  font-weight: 600;
+  color: var(--slate-200);
+}
+
+.reportTime {
+  font-size: 10px;
+  color: var(--slate-400);
+}
+
+.reportLocation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--cyan-400);
+}
+
+.severityTag {
+  padding: 1px 4px;
+  border-radius: 2px;
+  font-size: 9px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+}
+
+.severityCritical {
+  composes: severityTag;
+  background: rgba(69, 10, 10, 0.7);
+  color: var(--red-400);
+  border: 1px solid rgba(185, 28, 28, 0.5);
+}
+
+.severityHigh {
+  composes: severityTag;
+  background: var(--slate-800);
+  color: var(--slate-300);
+}
+
+.reportNotes {
+  font-size: 10px;
+  color: var(--slate-300);
+  margin-top: 4px;
+  font-style: italic;
+  line-height: 1.4;
+  font-weight: 300;
+}
+
+.reportThumb {
+  margin-top: 6px;
+  position: relative;
+  height: 56px;
+  width: 100%;
+  border-radius: 3px;
+  background: var(--slate-900);
+  border: 1px solid var(--slate-800);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.reportThumbOverlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(30, 41, 59, 0.75);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 4px;
+  z-index: 1;
+}
+
+.reportCoords {
+  font-size: 9px;
+  color: var(--slate-300);
+  font-family: var(--font-mono);
+}
+
+.reportMediaTag {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 2px;
+  font-size: 10px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+}
+
+.mediaVideo {
+  composes: reportMediaTag;
+  background: rgba(2, 6, 23, 0.7);
+  border: 1px solid var(--slate-700);
+  color: var(--cyan-400);
+}
+
+.mediaImage {
+  composes: reportMediaTag;
+  background: rgba(2, 6, 23, 0.7);
+  border: 1px solid var(--slate-700);
+  color: var(--slate-300);
+}
+
+/* ── Upload CTA Button ───────────────────────────────────────────────── */
+.uploadBtn {
+  margin-top: 10px;
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: var(--card-radius);
+  background: var(--cyan-700);
+  border: 1px solid var(--cyan-500);
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: background var(--duration) var(--ease-out);
+}
+
+.uploadBtn:hover {
+  background: var(--cyan-500);
+}
+
+/* ── Bypass Routing Card ─────────────────────────────────────────────── */
+.bypassRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 10px;
+  margin-top: 8px;
+}
+
+.bypassExportBtn {
+  padding: 2px 8px;
+  border-radius: 2px;
+  background: var(--slate-800);
+  border: 1px solid var(--slate-600);
+  color: var(--cyan-400);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: background var(--duration) var(--ease-out);
+}
+
+.bypassExportBtn:hover {
+  background: var(--slate-700);
+}
+
+/* ── Section Divider ─────────────────────────────────────────────────── */
+.sectionDivider {
+  border-bottom: 1px solid var(--slate-800);
+  padding-bottom: 6px;
+  margin-bottom: 8px;
+}
+
+/* ── Footer ──────────────────────────────────────────────────────────── */
+.footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 28px;
+  background: var(--card-bg-solid);
+  backdrop-filter: var(--card-blur);
+  border-top: 1px solid var(--slate-800);
+  padding: 0 var(--sp-4);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  z-index: 40;
+}
+
+.footerLeft {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  color: var(--slate-400);
+}
+
+.footerRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--slate-400);
+}
+
+.footerIndicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.footerDivider {
+  color: var(--slate-700);
+}
+
+/* ── Tab Alt Views (Field Sync / GIS full-screen) ────────────────────── */
+.tabView {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: var(--sp-4);
+  max-width: 960px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.tabViewWide {
+  composes: tabView;
+  max-width: 1920px;
+}
+
+.tabHeader {
+  margin-bottom: var(--sp-3);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--slate-800);
+  padding-bottom: 8px;
+}
+
+.backBtn {
+  padding: 4px 12px;
+  border-radius: var(--card-radius);
+  background: var(--slate-800);
+  border: 1px solid var(--slate-600);
+  color: var(--cyan-400);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: background var(--duration) var(--ease-out);
+}
+
+.backBtn:hover {
+  background: var(--slate-700);
+}
+
+.tabMeta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--slate-400);
+}
+
+.fullMapContainer {
+  flex: 1;
+  min-height: 750px;
+}
+
+/* ── Text Helpers ────────────────────────────────────────────────────── */
+.textMuted   { color: var(--slate-400); }
+.textLight   { color: var(--slate-300); }
+.textWhite   { color: var(--slate-50); font-weight: 600; }
+.textCyan    { color: var(--cyan-400); }
+.textAmber   { color: var(--amber-400); }
+.textRed     { color: var(--red-400); }
+.textEmerald { color: var(--emerald-400); font-weight: 600; }
+.textXs      { font-size: 11px; }
+.textXxs     { font-size: 10px; }
+.textTiny    { font-size: 9px; }
+.bold        { font-weight: 600; }
+.mono        { font-family: var(--font-mono); }
+.truncate    { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

@@ -1,0 +1,66 @@
+/* ======================================================================
+   TERRACAST-NER — Design Token System (CSS Custom Properties)
+   Replaces @stitches/react theme tokens for React 19 / Next.js 16 compat.
+   ====================================================================== */
+
+:root {
+  /* ── Slate Palette ─────────────────────────────────────────────────── */
+  --slate-50:  #f8fafc;
+  --slate-100: #f1f5f9;
+  --slate-200: #e2e8f0;
+  --slate-300: #cbd5e1;
+  --slate-400: #94a3b8;
+  --slate-500: #64748b;
+  --slate-600: #475569;
+  --slate-700: #334155;
+  --slate-800: #1e293b;
+  --slate-900: #0f172a;
+  --slate-950: #020617;
+
+  /* ── Accent ────────────────────────────────────────────────────────── */
+  --cyan-400:    #22d3ee;
+  --cyan-500:    #06b6d4;
+  --cyan-700:    #0e7490;
+  --emerald-400: #34d399;
+  --emerald-700: #047857;
+  --amber-300:   #fcd34d;
+  --amber-400:   #fbbf24;
+  --red-400:     #f87171;
+  --red-700:     #b91c1c;
+  --red-950:     #450a0a;
+  --sky-400:     #38bdf8;
+
+  /* ── Status Tones (muted, elegant — no neons) ──────────────────────── */
+  --status-normal:   #6ee7b7;
+  --status-advisory: #fcd34d;
+  --status-warning:  #fb923c;
+  --status-critical: #f87171;
+
+  /* ── Typography ────────────────────────────────────────────────────── */
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Roboto Mono', ui-monospace, monospace;
+
+  /* ── Glassmorphic Card Tokens ──────────────────────────────────────── */
+  --card-bg:       rgba(15, 23, 42, 0.6);
+  --card-bg-solid: rgba(15, 23, 42, 0.85);
+  --card-border:   var(--slate-700);
+  --card-blur:     blur(8px);
+  --card-radius:   4px;
+
+  /* ── Background Overlay ────────────────────────────────────────────── */
+  --bg-overlay: rgba(2, 6, 23, 0.85);
+  --bg-image:   url('/bg-satellite.jpg');
+
+  /* ── Spacing Scale ─────────────────────────────────────────────────── */
+  --sp-1:  4px;
+  --sp-2:  8px;
+  --sp-3:  12px;
+  --sp-4:  16px;
+  --sp-5:  20px;
+  --sp-6:  24px;
+  --sp-8:  32px;
+
+  /* ── Transitions ───────────────────────────────────────────────────── */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration: 200ms;
+}

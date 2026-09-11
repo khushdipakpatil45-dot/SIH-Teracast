@@ -4,32 +4,16 @@ import React, { useState, useEffect } from 'react';
 import { 
   ShieldAlert, 
   MapPin, 
-  Navigation, 
-  Layers, 
-  Wifi, 
-  WifiOff, 
-  Activity, 
   Radio, 
   Camera, 
-  PhoneCall, 
   Clock, 
-  ChevronRight,
-  Play,
   RotateCcw,
-  CheckCircle,
   Download,
   CloudRain,
   CloudLightning,
   Droplets,
   Wind,
-  AlertTriangle,
-  Send,
-  UserCheck,
   ChevronDown,
-  Compass,
-  FileText,
-  Share2,
-  ExternalLink,
   Flame,
   ArrowLeft,
   Film
@@ -40,6 +24,9 @@ import { CORRIDORS_DATA, CorridorData } from '@/lib/corridors';
 import { GoogleMapsGis } from '@/components/gis/GoogleMapsGis';
 import { SnapAndVerify } from '@/components/field/SnapAndVerify';
 import { PredictiveChart } from '@/components/analytics/PredictiveChart';
+import s from './CommandCenter.module.css';
+
+// ─── Interfaces (unchanged) ─────────────────────────────────────────────────
 
 interface AlertItem {
   id: string;
@@ -78,7 +65,8 @@ interface FieldReportItem {
   created_at: string;
 }
 
-// Initial emergency dispatch log
+// ─── Seed Data (unchanged) ──────────────────────────────────────────────────
+
 const INITIAL_ALERTS: AlertItem[] = [
   {
     id: 'disp-001',
@@ -137,7 +125,6 @@ const INITIAL_ALERTS: AlertItem[] = [
   }
 ];
 
-// Initial field reports seed
 const INITIAL_FIELD_REPORTS: FieldReportItem[] = [
   {
     report_id: 'rep-ner-001',
@@ -237,6 +224,8 @@ const INITIAL_FIELD_REPORTS: FieldReportItem[] = [
   }
 ];
 
+// ─── Component ──────────────────────────────────────────────────────────────
+
 export default function CommandCenter() {
   const { 
     selectedCorridor, 
@@ -257,14 +246,13 @@ export default function CommandCenter() {
   const [adminDropdownOpen, setAdminDropdownOpen] = useState(false);
   const [alertsCount, setAlertsCount] = useState(5);
 
-  // Dynamic state for emergency alerts log
   const [alertsLog, setAlertsLog] = useState<AlertItem[]>(INITIAL_ALERTS);
-
-  // Dynamic state for field reports feed
   const [fieldReports, setFieldReports] = useState<FieldReportItem[]>(INITIAL_FIELD_REPORTS);
 
   const activeCorridorData: CorridorData = CORRIDORS_DATA[selectedCorridor] || CORRIDORS_DATA['NH-10'];
   const isHighwayBlocked = isSimulatingStorm || blockedRoadSegments.includes(selectedCorridor);
+
+  // ─── Effects (all unchanged) ──────────────────────────────────────────
 
   // Live IST Clock update
   useEffect(() => {
@@ -344,7 +332,8 @@ export default function CommandCenter() {
     return unsubscribe;
   }, [selectedCorridor, updateCriticalCount, addBlockedSegment]);
 
-  // Simulation handler: Escalates rainfall and pore pressure to trigger shear failure
+  // ─── Handlers (all unchanged) ─────────────────────────────────────────
+
   const handleToggleStormSimulation = async () => {
     if (!isSimulatingStorm) {
       setIsSimulatingStorm(true);
@@ -367,7 +356,6 @@ export default function CommandCenter() {
 
       setAlertsLog((prev) => [newAlert, ...prev]);
 
-      // Call backend dispatch endpoint if available
       try {
         const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
         await fetch(`${backendUrl}/api/v1/hazard/alerts/dispatch`, {
@@ -388,7 +376,6 @@ export default function CommandCenter() {
     }
   };
 
-  // Export tactical convoy bypass coordinates as GeoJSON
   const handleExportBypassGeoJSON = () => {
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(
       JSON.stringify(activeCorridorData.bypass, null, 2)
@@ -401,124 +388,96 @@ export default function CommandCenter() {
     downloadAnchor.remove();
   };
 
-  // Handler for newly submitted field reports from SnapAndVerify
   const handleNewReportSubmitted = (newReport: FieldReportItem) => {
     setFieldReports((prev) => [newReport, ...prev]);
   };
 
+  // ─── Render ───────────────────────────────────────────────────────────
+
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col select-none font-sans pb-8">
+    <div className={s.shell}>
       
-      {/* ========================================================================= */}
-      {/* 1. PERSISTENT TOP NAVIGATION BAR (Command Center Theme)                   */}
-      {/* ========================================================================= */}
-      <header className="h-13 bg-slate-900 border-b border-slate-700 px-4 flex items-center justify-between sticky top-0 z-50 shadow-sm">
+      {/* ================================================================= */}
+      {/* HEADER                                                             */}
+      {/* ================================================================= */}
+      <header className={s.header}>
         
-        {/* Left: App Logo + Title */}
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 bg-slate-800 border border-slate-600 rounded flex items-center justify-center">
-              <Radio className="w-4 h-4 text-cyan-400" />
-            </div>
-            <span className="font-extrabold text-sm tracking-wider text-white font-mono">
-              TERRACAST-NER
-            </span>
+        {/* Left: Logo + Subtitle */}
+        <div className={s.headerLeft}>
+          <div className={s.logoBox}>
+            <Radio className="w-4 h-4" style={{ color: 'var(--cyan-400)' }} />
           </div>
-
-          <div className="h-4 w-[1px] bg-slate-700 hidden sm:block"></div>
-
-          <span className="text-[11px] text-slate-400 font-mono tracking-wide hidden sm:block uppercase">
+          <span className={s.logoText}>TERRACAST-NER</span>
+          <div className={s.headerDivider} />
+          <span className={s.headerSubtitle}>
             Disaster Early Warning &amp; Lifeline Command Center
           </span>
         </div>
 
-        {/* Center Navigation Tabs: Clean Data-Dense Tabs */}
-        <nav className="flex items-center gap-1 bg-slate-950 border border-slate-800 p-0.5 rounded">
-          {(['DASHBOARD', 'GIS MAP', 'FIELD SYNC', 'ALERTS', 'RESOURCES'] as const).map((tab) => {
-            const isActive = activeTab === tab;
-            return (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`px-3 py-1 text-xs font-mono font-bold rounded transition-colors ${
-                  isActive
-                    ? 'bg-slate-800 text-cyan-400 border border-slate-600'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900 border border-transparent'
-                }`}
-              >
-                {tab}
-              </button>
-            );
-          })}
+        {/* Center: Navigation Tabs */}
+        <nav className={s.nav}>
+          {(['DASHBOARD', 'GIS MAP', 'FIELD SYNC', 'ALERTS', 'RESOURCES'] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={activeTab === tab ? s.navTabActive : s.navTab}
+            >
+              {tab}
+            </button>
+          ))}
         </nav>
 
-        {/* Right Controls: Red Alert Indicator + Corridor Switcher */}
-        <div className="flex items-center gap-2.5">
-          
-          {/* Active Alerts Badge */}
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-red-950/80 border border-red-700 text-red-300 text-xs font-mono font-bold">
-            <ShieldAlert className="w-3.5 h-3.5 text-red-400" />
+        {/* Right: Alert Badge + Admin */}
+        <div className={s.headerRight}>
+          <div className={s.alertsBadge}>
+            <ShieldAlert className="w-3.5 h-3.5" />
             <span>{alertsCount} DISPATCH ALERTS</span>
           </div>
 
-          {/* Admin Station Profile */}
-          <div className="relative">
-            <button
-              onClick={() => setAdminDropdownOpen(!adminDropdownOpen)}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-750 border border-slate-700 text-xs font-mono text-slate-200 transition-colors"
-            >
+          <div style={{ position: 'relative' }}>
+            <button onClick={() => setAdminDropdownOpen(!adminDropdownOpen)} className={s.adminBtn}>
               <span>👤</span>
-              <span className="hidden sm:inline">NER HQ | Gangtok</span>
-              <ChevronDown className="w-3 h-3 text-slate-400" />
+              <span>NER HQ | Gangtok</span>
+              <ChevronDown className="w-3 h-3" style={{ color: 'var(--slate-400)' }} />
             </button>
 
             {adminDropdownOpen && (
-              <div className="absolute right-0 mt-1 w-56 bg-slate-900 border border-slate-700 rounded shadow-xl py-1 z-50 text-xs font-mono">
-                <div className="px-3 py-1.5 border-b border-slate-800 text-slate-400">
-                  Command Agency: <strong className="text-slate-200 block">SDRF / NDRF NER Joint Cell</strong>
+              <div className={s.dropdown}>
+                <div className={s.dropdownHeader}>
+                  Command Agency: <strong style={{ color: 'var(--slate-200)', display: 'block' }}>SDRF / NDRF NER Joint Cell</strong>
                 </div>
-                <div className="px-3 py-1 text-[10px] text-slate-500 uppercase font-bold">Monitored State Sector</div>
+                <div className={s.dropdownLabel}>Monitored State Sector</div>
                 {Object.keys(CORRIDORS_DATA).map((cid) => (
                   <button
                     key={cid}
-                    onClick={() => {
-                      setSelectedCorridor(cid);
-                      setAdminDropdownOpen(false);
-                    }}
-                    className={`w-full text-left px-3 py-1 text-xs hover:bg-slate-800 flex items-center justify-between ${
-                      selectedCorridor === cid ? 'text-cyan-400 font-bold bg-slate-800/60' : 'text-slate-300'
-                    }`}
+                    onClick={() => { setSelectedCorridor(cid); setAdminDropdownOpen(false); }}
+                    className={selectedCorridor === cid ? s.dropdownItemActive : s.dropdownItem}
                   >
                     <span>{cid}</span>
-                    <span className="text-[10px] text-slate-400">{CORRIDORS_DATA[cid].district}</span>
+                    <span className={s.textTiny} style={{ color: 'var(--slate-400)' }}>{CORRIDORS_DATA[cid].district}</span>
                   </button>
                 ))}
               </div>
             )}
           </div>
-
         </div>
+
       </header>
 
-      {/* ========================================================================= */}
-      {/* 2. TAB ROUTING VIEW: FIELD SYNC FULL-SCREEN VIEW                          */}
-      {/* ========================================================================= */}
+      {/* ================================================================= */}
+      {/* TAB: FIELD SYNC (full-screen view)                                 */}
+      {/* ================================================================= */}
       {activeTab === 'FIELD SYNC' ? (
-        <main className="flex-1 flex flex-col p-4 max-w-4xl mx-auto w-full">
-          <div className="mb-3 flex items-center justify-between border-b border-slate-800 pb-2">
-            <button
-              onClick={() => setActiveTab('DASHBOARD')}
-              className="px-3 py-1.5 rounded bg-slate-800 hover:bg-slate-700 border border-slate-600 text-xs font-mono font-bold text-cyan-400 flex items-center gap-1.5 transition-colors"
-            >
+        <main className={s.tabView}>
+          <div className={s.tabHeader}>
+            <button onClick={() => setActiveTab('DASHBOARD')} className={s.backBtn}>
               <ArrowLeft className="w-4 h-4" />
-              <span>← Back to Command Center Dashboard</span>
+              <span>← Back to Command Center</span>
             </button>
-
-            <span className="text-xs font-mono text-slate-400">
-              Corridor Sector: <strong className="text-slate-200">{selectedCorridor} ({activeCorridorData.district})</strong>
+            <span className={s.tabMeta}>
+              Corridor: <strong style={{ color: 'var(--slate-200)' }}>{selectedCorridor} ({activeCorridorData.district})</strong>
             </span>
           </div>
-
           <SnapAndVerify
             isOpen={true}
             onClose={() => setActiveTab('DASHBOARD')}
@@ -527,399 +486,342 @@ export default function CommandCenter() {
             isFullScreenTab={true}
           />
         </main>
+
       ) : activeTab === 'GIS MAP' ? (
-        <main className="flex-1 p-3 flex flex-col max-w-[1920px] w-full mx-auto">
-          <div className="mb-2 flex items-center justify-between">
-            <button
-              onClick={() => setActiveTab('DASHBOARD')}
-              className="px-3 py-1 rounded bg-slate-800 hover:bg-slate-700 border border-slate-600 text-xs font-mono font-bold text-cyan-400 flex items-center gap-1.5 transition-colors"
-            >
+        /* ================================================================= */
+        /* TAB: GIS MAP (full-screen view)                                   */
+        /* ================================================================= */
+        <main className={s.tabViewWide}>
+          <div className={s.tabHeader}>
+            <button onClick={() => setActiveTab('DASHBOARD')} className={s.backBtn}>
               <ArrowLeft className="w-3.5 h-3.5" />
               <span>Back to Dashboard</span>
             </button>
-            <div className="text-xs font-mono text-slate-400">
-              Interactive Full-Screen GIS | Active Corridor: <strong className="text-slate-200">{selectedCorridor}</strong>
-            </div>
+            <span className={s.tabMeta}>
+              Full-Screen GIS | Corridor: <strong style={{ color: 'var(--slate-200)' }}>{selectedCorridor}</strong>
+            </span>
           </div>
-          <div className="flex-1 min-h-[750px]">
+          <div className={s.fullMapContainer}>
             <GoogleMapsGis corridorId={selectedCorridor} isBlocked={isHighwayBlocked} />
           </div>
         </main>
+
       ) : (
-        /* ========================================================================= */
-        /* 3. MAIN COMMAND CENTER GRID (High Data-Density Dashboard)                 */
-        /* ========================================================================= */
-        <main className="flex-1 p-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-3 max-w-[1920px] w-full mx-auto">
+        /* ================================================================= */
+        /* DASHBOARD: Vertical Hero Map + 3-Column Data Grid                 */
+        /* ================================================================= */
+        <main className={s.main}>
 
-          {/* ----------------------------------------------------------------------- */}
-          {/* COLUMN 1: System Status & IMD/GPM Weather (~18% -> col-span-2)          */}
-          {/* ----------------------------------------------------------------------- */}
-          <div className="lg:col-span-2 flex flex-col gap-3">
-            
-            {/* Timestamp Panel */}
-            <div className="bg-slate-900 border border-slate-700 rounded p-2.5 font-mono">
-              <div className="flex items-center justify-between text-[10px] text-slate-400 uppercase tracking-wider mb-1">
-                <span>Station Clock</span>
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-              </div>
-              <div className="text-xs font-bold text-white flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5 text-cyan-400" />
-                <span>{currentTime}</span>
-              </div>
-              <div className="mt-0.5 text-[9px] text-slate-500">
-                Indian Standard Time (UTC+05:30)
-              </div>
-            </div>
-
-            {/* Operational Mode Card */}
-            <div className="bg-slate-900 border border-slate-700 rounded p-2.5 font-mono">
-              <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1 flex items-center justify-between font-bold">
-                <span>Operation Mode</span>
-                <span className="text-amber-400 text-[9px]">MONSOON SURGE</span>
-              </div>
-              <div className="px-2 py-1 rounded bg-slate-950 border border-slate-700 text-amber-300 text-[11px] font-bold">
-                HIGHWAY PASSABILITY: {isHighwayBlocked ? 'CRITICAL SEVERANCE' : 'CONTROLLED OPEN'}
-              </div>
-              <div className="mt-1.5 text-[10px] text-slate-400 flex items-center justify-between">
-                <span>Current Basin:</span>
-                <span className="text-slate-200 font-bold">{activeCorridorData.district}</span>
-              </div>
-            </div>
-
-            {/* Full NER Corridor Switcher (All 8 Corridors) */}
-            <div className="bg-slate-900 border border-slate-700 rounded p-2.5 font-mono">
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">
-                  NER Corridor Selection
-                </span>
-                <span className="text-[9px] text-cyan-400">8 CORRIDORS</span>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-1 text-[10px]">
-                {Object.keys(CORRIDORS_DATA).map((cid) => {
-                  const isSel = selectedCorridor === cid;
-                  const item = CORRIDORS_DATA[cid];
-                  return (
-                    <button
-                      key={cid}
-                      onClick={() => setSelectedCorridor(cid)}
-                      className={`p-1.5 rounded border text-left transition-colors ${
-                        isSel
-                          ? 'bg-slate-800 border-cyan-500 text-cyan-300 font-bold'
-                          : 'bg-slate-950 border-slate-800 text-slate-400 hover:bg-slate-800 hover:text-slate-200'
-                      }`}
-                    >
-                      <div className="font-bold">{cid}</div>
-                      <div className="text-[9px] text-slate-500 truncate">{item.district}</div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Weather Forecast: Live IMD Doppler & NASA GPM Feed */}
-            <div className="bg-slate-900 border border-slate-700 rounded p-2.5 font-mono">
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">
-                  Precipitation &amp; GPM Feed
-                </span>
-                <span className="text-[9px] text-emerald-400 flex items-center gap-1 font-bold">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                  IMD / NASA GPM
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-1.5 text-xs">
-                <div className="bg-slate-950 border border-slate-800 rounded p-1.5 flex flex-col">
-                  <div className="flex items-center justify-between text-slate-400">
-                    <CloudRain className="w-3.5 h-3.5 text-cyan-400" />
-                    <span className="text-[10px]">Dima Hasao</span>
-                  </div>
-                  <div className="text-xs font-bold text-white mt-1">48.5 mm/h</div>
-                  <div className="text-[9px] text-red-400">Saturation 91.2%</div>
-                </div>
-
-                <div className="bg-slate-950 border border-slate-800 rounded p-1.5 flex flex-col">
-                  <div className="flex items-center justify-between text-slate-400">
-                    <CloudLightning className="w-3.5 h-3.5 text-amber-400" />
-                    <span className="text-[10px]">East Khasi</span>
-                  </div>
-                  <div className="text-xs font-bold text-white mt-1">62.0 mm/h</div>
-                  <div className="text-[9px] text-red-400">Saturation 94.8%</div>
-                </div>
-
-                <div className="bg-slate-950 border border-slate-800 rounded p-1.5 flex flex-col">
-                  <div className="flex items-center justify-between text-slate-400">
-                    <Droplets className="w-3.5 h-3.5 text-blue-400" />
-                    <span className="text-[10px]">N. Sikkim</span>
-                  </div>
-                  <div className="text-xs font-bold text-white mt-1">38.0 mm/h</div>
-                  <div className="text-[9px] text-amber-400">Saturation 89.5%</div>
-                </div>
-
-                <div className="bg-slate-950 border border-slate-800 rounded p-1.5 flex flex-col">
-                  <div className="flex items-center justify-between text-slate-400">
-                    <Wind className="w-3.5 h-3.5 text-emerald-400" />
-                    <span className="text-[10px]">Aizawl</span>
-                  </div>
-                  <div className="text-xs font-bold text-white mt-1">32.5 mm/h</div>
-                  <div className="text-[9px] text-slate-400">Saturation 86.4%</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Storm Simulation Trigger */}
-            <button
-              onClick={handleToggleStormSimulation}
-              className={`w-full py-2 px-3 rounded font-mono text-xs font-bold transition-colors border flex items-center justify-center gap-1.5 ${
-                isSimulatingStorm
-                  ? 'bg-rose-950 border-rose-600 text-rose-300'
-                  : 'bg-slate-800 hover:bg-slate-700 border-slate-600 text-slate-200'
-              }`}
-            >
-              {isSimulatingStorm ? (
-                <>
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  <span>RESET MONSOON SIMULATION</span>
-                </>
-              ) : (
-                <>
-                  <Flame className="w-3.5 h-3.5 text-amber-400" />
-                  <span>SIMULATE STORM SURGE</span>
-                </>
-              )}
-            </button>
-
-          </div>
-
-          {/* ----------------------------------------------------------------------- */}
-          {/* COLUMN 2: Full NER GIS Map (~44% -> col-span-5)                         */}
-          {/* ----------------------------------------------------------------------- */}
-          <div className="lg:col-span-5 flex flex-col min-h-[580px] h-full">
+          {/* ── HERO: Full-Width GIS Map (58vh landscape) ──────────────── */}
+          <div className={s.heroMap}>
             <GoogleMapsGis 
               corridorId={selectedCorridor} 
               isBlocked={isHighwayBlocked}
             />
           </div>
 
-          {/* ----------------------------------------------------------------------- */}
-          {/* COLUMN 3: Predictive Analytics & Emergency Alerts Log (~20% -> col-span-3) */}
-          {/* ----------------------------------------------------------------------- */}
-          <div className="lg:col-span-3 flex flex-col gap-3">
-            
-            {/* Predictive PINN Analytics Chart */}
-            <div className="bg-slate-900 border border-slate-700 rounded p-2.5">
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 font-bold">
-                  Predictive PINN Geotech Chart
-                </span>
-                <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-red-950/80 border border-red-700 text-red-300 font-bold">
-                  MDoNER 26001
-                </span>
+          {/* ── DATA DASHBOARD: 3-Column Grid ─────────────────────────── */}
+          <div className={s.dataGrid}>
+
+            {/* ── COLUMN 1: Station Metadata & Weather ─────────────────── */}
+            <div className={s.column}>
+
+              {/* Station Clock */}
+              <div className={s.card}>
+                <div className={s.cardHeader}>
+                  <span className={s.cardTitle}>Station Clock</span>
+                  <span className={`${s.dot} ${s.dotGreen}`} />
+                </div>
+                <div className={s.clockRow} data-mono="">
+                  <Clock className="w-3.5 h-3.5" style={{ color: 'var(--cyan-400)' }} />
+                  <span>{currentTime}</span>
+                </div>
+                <div className={s.clockSub}>Indian Standard Time (UTC+05:30)</div>
               </div>
 
-              {/* Upgraded Multi-Variable Recharts Component */}
-              <PredictiveChart />
-            </div>
+              {/* Operational Mode */}
+              <div className={s.card}>
+                <div className={s.cardHeader}>
+                  <span className={s.cardTitle}>Operation Mode</span>
+                  <span className={s.opModeTag}>MONSOON SURGE</span>
+                </div>
+                <div className={s.opModeStatus}>
+                  HIGHWAY PASSABILITY: {isHighwayBlocked ? 'CRITICAL SEVERANCE' : 'CONTROLLED OPEN'}
+                </div>
+                <div className={s.metaRow}>
+                  <span>Current Basin:</span>
+                  <span className={s.textWhite}>{activeCorridorData.district}</span>
+                </div>
+              </div>
 
-            {/* Emergency Alerts Log Intimation (Constraint 5) */}
-            <div className="bg-slate-900 border border-slate-700 rounded p-2.5 flex-1 flex flex-col font-mono">
-              <div className="flex items-center justify-between mb-2 border-b border-slate-800 pb-1.5">
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-red-500"></span>
-                  <span className="text-[10px] uppercase tracking-wider text-slate-300 font-bold">
-                    Emergency Alerts Log Intimation
+              {/* NER Corridor Selector */}
+              <div className={s.card}>
+                <div className={s.cardHeader}>
+                  <span className={s.cardTitle}>NER Corridor Selection</span>
+                  <span className={s.badgeCyan}>8 CORRIDORS</span>
+                </div>
+                <div className={s.corridorGrid}>
+                  {Object.keys(CORRIDORS_DATA).map((cid) => {
+                    const isSel = selectedCorridor === cid;
+                    const item = CORRIDORS_DATA[cid];
+                    return (
+                      <button
+                        key={cid}
+                        onClick={() => setSelectedCorridor(cid)}
+                        className={isSel ? s.corridorBtnActive : s.corridorBtn}
+                      >
+                        <div className={s.corridorBtnLabel}>{cid}</div>
+                        <div className={s.corridorBtnSub}>{item.district}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Weather / Precipitation Feed */}
+              <div className={s.card}>
+                <div className={s.cardHeader}>
+                  <span className={s.cardTitle}>Precipitation &amp; GPM Feed</span>
+                  <span className={s.textEmerald} style={{ fontSize: '9px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <span className={`${s.dotSm} ${s.dotGreen}`} />
+                    IMD / NASA GPM
                   </span>
                 </div>
-                <span className="text-[9px] text-cyan-400 font-bold">SIP/SMS GATEWAY</span>
-              </div>
-
-              {/* Dynamic Scrollable Dispatch Feed */}
-              <div className="space-y-1.5 overflow-y-auto max-h-[220px] pr-1 flex-1">
-                {alertsLog.map((alert) => {
-                  const isCrit = alert.tier === 'CRITICAL';
-                  return (
-                    <div 
-                      key={alert.id}
-                      className={`p-2 rounded border text-xs leading-relaxed ${
-                        isCrit 
-                          ? 'bg-red-950/40 border-red-800/70 text-red-200' 
-                          : 'bg-amber-950/30 border-amber-800/60 text-amber-200'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between text-[10px] font-bold mb-0.5">
-                        <span className={isCrit ? 'text-red-400' : 'text-amber-400'}>
-                          [{alert.tier} | {alert.district} | {alert.timestamp}]
-                        </span>
-                        <span className="text-slate-400 text-[9px]">{alert.dialects.join('/')}</span>
-                      </div>
-                      <div className="text-[11px] text-slate-300 font-normal">
-                        {alert.summary}
-                      </div>
-                      <div className="mt-1 flex items-center gap-2 text-[9px] text-slate-400">
-                        <span>Channels: <strong>{alert.channels.join(', ')}</strong></span>
-                      </div>
+                <div className={s.weatherGrid}>
+                  <div className={s.weatherCell}>
+                    <div className={s.weatherCellHead}>
+                      <CloudRain className="w-3.5 h-3.5" style={{ color: 'var(--cyan-400)' }} />
+                      <span>Dima Hasao</span>
                     </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Bypass Rerouting Tactical Card */}
-            <div className="bg-slate-900 border border-slate-700 rounded p-2.5 font-mono">
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">
-                  Tactical Convoy Bypass Routing
-                </span>
-                <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-950 border border-emerald-700 text-emerald-300 font-bold">
-                  CLEAR ROUTE
-                </span>
-              </div>
-
-              <div className="text-[11px] text-slate-300">
-                <span className="text-slate-400">Active Corridor: </span>
-                <strong className="text-white">{activeCorridorData.name}</strong>
-              </div>
-              <div className="text-[10px] text-cyan-400 mt-0.5">
-                Bypass: {activeCorridorData.bypass.name}
-              </div>
-
-              <div className="mt-2 flex items-center justify-between text-[10px]">
-                <span className="text-slate-400">Distance: <strong>{activeCorridorData.bypass.distanceKm} km</strong></span>
-                <button
-                  onClick={handleExportBypassGeoJSON}
-                  className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 border border-slate-600 text-cyan-300 flex items-center gap-1 text-[10px] font-bold transition-colors"
-                >
-                  <Download className="w-3 h-3" />
-                  Export GeoJSON
-                </button>
-              </div>
-            </div>
-
-          </div>
-
-          {/* ----------------------------------------------------------------------- */}
-          {/* COLUMN 4: Field Reports & Citizen Media Sync (~18% -> col-span-2)       */}
-          {/* ----------------------------------------------------------------------- */}
-          <div className="lg:col-span-2 flex flex-col gap-3 font-mono">
-            
-            <div className="bg-slate-900 border border-slate-700 rounded p-2.5 flex-1 flex flex-col">
-              
-              {/* Header */}
-              <div className="flex items-center justify-between mb-2 border-b border-slate-800 pb-1.5">
-                <span className="text-[10px] uppercase tracking-wider text-slate-300 font-bold">
-                  Field Reports &amp; Media
-                </span>
-                <span className="text-[9px] text-emerald-400 font-bold">
-                  {fieldReports.length} REPORTS
-                </span>
-              </div>
-
-              {/* Action Bar */}
-              <div className="bg-slate-950 border border-slate-800 rounded px-2 py-1 flex items-center justify-between mb-2">
-                <span className="text-[10px] text-cyan-400 flex items-center gap-1">
-                  <MapPin className="w-3 h-3" />
-                  + Geotagged Media
-                </span>
-                <span className="text-[9px] text-slate-500">EXIF Validated</span>
-              </div>
-
-              {/* Dynamic Scrollable Reports Feed */}
-              <div className="space-y-2 overflow-y-auto flex-1 pr-1 max-h-[460px]">
-                {fieldReports.map((rep) => (
-                  <div 
-                    key={rep.report_id}
-                    className="bg-slate-950 border border-slate-800 hover:border-slate-700 rounded p-2 transition-colors"
-                  >
-                    <div className="flex items-start justify-between text-[11px] mb-1">
-                      <span className="font-bold text-slate-200 truncate">{rep.reporter_name}</span>
-                      <span className="text-[10px] text-slate-400">{rep.timestamp}</span>
-                    </div>
-
-                    <div className="text-[10px] text-cyan-400 flex items-center justify-between">
-                      <span>{rep.location_name}</span>
-                      <span className={`px-1 rounded text-[9px] font-bold ${
-                        rep.severity === 'CRITICAL' ? 'bg-red-950 text-red-300 border border-red-800' : 'bg-slate-800 text-slate-300'
-                      }`}>
-                        {rep.severity}
-                      </span>
-                    </div>
-
-                    <div className="text-[10px] text-slate-300 mt-1 italic leading-tight">
-                      &ldquo;{rep.notes}&rdquo;
-                    </div>
-
-                    {/* Media Thumbnail / Video Tag */}
-                    <div className="mt-1.5 relative h-16 w-full rounded bg-slate-900 border border-slate-800 overflow-hidden flex items-center justify-center">
-                      <div className="absolute inset-0 bg-slate-800/80 flex flex-col justify-end p-1 z-10">
-                        <span className="text-[9px] text-slate-300">
-                          {rep.latitude.toFixed(3)}°N, {rep.longitude.toFixed(3)}°E
-                        </span>
-                      </div>
-
-                      {rep.media_type === 'video' ? (
-                        <div className="relative z-20 flex items-center gap-1 bg-slate-950/80 px-2 py-0.5 rounded border border-slate-700 text-[10px] text-cyan-300 font-bold">
-                          <Film className="w-3 h-3 text-cyan-400" />
-                          <span>MP4 VIDEO</span>
-                        </div>
-                      ) : (
-                        <div className="relative z-20 flex items-center gap-1 bg-slate-950/80 px-2 py-0.5 rounded border border-slate-700 text-[10px] text-slate-300">
-                          <Camera className="w-3 h-3 text-slate-400" />
-                          <span>EXIF STAMPED</span>
-                        </div>
-                      )}
-                    </div>
+                    <div className={s.weatherVal}>48.5 mm/h</div>
+                    <div className={`${s.weatherSat} ${s.weatherSatDanger}`}>Saturation 91.2%</div>
                   </div>
-                ))}
+                  <div className={s.weatherCell}>
+                    <div className={s.weatherCellHead}>
+                      <CloudLightning className="w-3.5 h-3.5" style={{ color: 'var(--amber-400)' }} />
+                      <span>East Khasi</span>
+                    </div>
+                    <div className={s.weatherVal}>62.0 mm/h</div>
+                    <div className={`${s.weatherSat} ${s.weatherSatDanger}`}>Saturation 94.8%</div>
+                  </div>
+                  <div className={s.weatherCell}>
+                    <div className={s.weatherCellHead}>
+                      <Droplets className="w-3.5 h-3.5" style={{ color: 'var(--sky-400)' }} />
+                      <span>N. Sikkim</span>
+                    </div>
+                    <div className={s.weatherVal}>38.0 mm/h</div>
+                    <div className={`${s.weatherSat} ${s.weatherSatWarn}`}>Saturation 89.5%</div>
+                  </div>
+                  <div className={s.weatherCell}>
+                    <div className={s.weatherCellHead}>
+                      <Wind className="w-3.5 h-3.5" style={{ color: 'var(--emerald-400)' }} />
+                      <span>Aizawl</span>
+                    </div>
+                    <div className={s.weatherVal}>32.5 mm/h</div>
+                    <div className={`${s.weatherSat} ${s.weatherSatOk}`}>Saturation 86.4%</div>
+                  </div>
+                </div>
               </div>
 
-              {/* Upload Report CTA Button */}
+              {/* Storm Simulation */}
               <button
-                onClick={() => setIsSnapModalOpen(true)}
-                className="mt-2.5 w-full py-2 px-3 rounded bg-cyan-700 hover:bg-cyan-600 text-white font-mono text-xs font-bold tracking-wide transition-colors border border-cyan-500 flex items-center justify-center gap-1.5"
+                onClick={handleToggleStormSimulation}
+                className={isSimulatingStorm ? s.simBtnActive : s.simBtnIdle}
               >
-                <Camera className="w-3.5 h-3.5" />
-                <span>+ UPLOAD GEOTAGGED REPORT</span>
+                {isSimulatingStorm ? (
+                  <>
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>RESET MONSOON SIMULATION</span>
+                  </>
+                ) : (
+                  <>
+                    <Flame className="w-3.5 h-3.5" style={{ color: 'var(--amber-400)' }} />
+                    <span>SIMULATE STORM SURGE</span>
+                  </>
+                )}
               </button>
 
             </div>
 
-          </div>
+            {/* ── COLUMN 2: PINN Charts & Bypass Routing ───────────────── */}
+            <div className={s.column}>
 
+              {/* Predictive PINN Chart */}
+              <div className={s.card}>
+                <div className={s.cardHeader}>
+                  <span className={s.cardTitle}>Predictive PINN Geotech Chart</span>
+                  <span className={s.badgeRed}>MDoNER 26001</span>
+                </div>
+                <PredictiveChart />
+              </div>
+
+              {/* Bypass Routing */}
+              <div className={s.card}>
+                <div className={s.cardHeader}>
+                  <span className={s.cardTitle}>Tactical Convoy Bypass Routing</span>
+                  <span className={s.badgeEmerald}>CLEAR ROUTE</span>
+                </div>
+                <div className={s.textXs}>
+                  <span className={s.textMuted}>Active Corridor: </span>
+                  <strong className={s.textWhite}>{activeCorridorData.name}</strong>
+                </div>
+                <div className={s.textCyan} style={{ fontSize: '10px', marginTop: '2px' }}>
+                  Bypass: {activeCorridorData.bypass.name}
+                </div>
+                <div className={s.bypassRow}>
+                  <span className={s.textMuted}>
+                    Distance: <strong>{activeCorridorData.bypass.distanceKm} km</strong>
+                  </span>
+                  <button onClick={handleExportBypassGeoJSON} className={s.bypassExportBtn}>
+                    <Download className="w-3 h-3" />
+                    Export GeoJSON
+                  </button>
+                </div>
+              </div>
+
+            </div>
+
+            {/* ── COLUMN 3: Alerts & Field Reports ─────────────────────── */}
+            <div className={s.column}>
+
+              {/* Emergency Alerts Log */}
+              <div className={s.card} style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                <div className={`${s.cardHeader} ${s.sectionDivider}`}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span className={`${s.dot} ${s.dotRed}`} />
+                    <span className={s.cardTitle}>Emergency Alerts Log Intimation</span>
+                  </div>
+                  <span className={s.badgeCyan}>SIP/SMS GATEWAY</span>
+                </div>
+
+                <div className={s.alertFeed}>
+                  {alertsLog.map((alert) => {
+                    const isCrit = alert.tier === 'CRITICAL';
+                    return (
+                      <div key={alert.id} className={isCrit ? s.alertItemCritical : s.alertItemHigh}>
+                        <div className={s.alertMeta}>
+                          <span style={{ color: isCrit ? 'var(--red-400)' : 'var(--amber-400)' }}>
+                            [{alert.tier} | {alert.district} | {alert.timestamp}]
+                          </span>
+                          <span className={s.textTiny} style={{ color: 'var(--slate-400)' }}>
+                            {alert.dialects.join('/')}
+                          </span>
+                        </div>
+                        <div className={s.alertSummary}>{alert.summary}</div>
+                        <div className={s.alertChannels}>
+                          <span>Channels: <strong>{alert.channels.join(', ')}</strong></span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Field Reports & Media */}
+              <div className={s.card} style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                <div className={`${s.cardHeader} ${s.sectionDivider}`}>
+                  <span className={s.cardTitle}>Field Reports &amp; Media</span>
+                  <span className={s.textEmerald} style={{ fontSize: '9px' }}>
+                    {fieldReports.length} REPORTS
+                  </span>
+                </div>
+
+                {/* Action Bar */}
+                <div style={{
+                  background: 'var(--slate-950)',
+                  border: '1px solid var(--slate-800)',
+                  borderRadius: '3px',
+                  padding: '4px 8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: '8px',
+                  fontSize: '10px',
+                  fontFamily: 'var(--font-mono)',
+                }}>
+                  <span className={s.textCyan} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <MapPin className="w-3 h-3" />
+                    + Geotagged Media
+                  </span>
+                  <span className={s.textTiny} style={{ color: 'var(--slate-500)' }}>EXIF Validated</span>
+                </div>
+
+                {/* Reports Feed */}
+                <div className={s.reportsFeed}>
+                  {fieldReports.map((rep) => (
+                    <div key={rep.report_id} className={s.reportCard}>
+                      <div className={s.reportHeader}>
+                        <span className={s.reportName}>{rep.reporter_name}</span>
+                        <span className={s.reportTime}>{rep.timestamp}</span>
+                      </div>
+                      <div className={s.reportLocation}>
+                        <span>{rep.location_name}</span>
+                        <span className={rep.severity === 'CRITICAL' ? s.severityCritical : s.severityHigh}>
+                          {rep.severity}
+                        </span>
+                      </div>
+                      <div className={s.reportNotes}>&ldquo;{rep.notes}&rdquo;</div>
+                      <div className={s.reportThumb}>
+                        <div className={s.reportThumbOverlay}>
+                          <span className={s.reportCoords}>
+                            {rep.latitude.toFixed(3)}°N, {rep.longitude.toFixed(3)}°E
+                          </span>
+                        </div>
+                        {rep.media_type === 'video' ? (
+                          <div className={s.mediaVideo}>
+                            <Film className="w-3 h-3" />
+                            <span>MP4 VIDEO</span>
+                          </div>
+                        ) : (
+                          <div className={s.mediaImage}>
+                            <Camera className="w-3 h-3" />
+                            <span>EXIF STAMPED</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Upload CTA */}
+                <button onClick={() => setIsSnapModalOpen(true)} className={s.uploadBtn}>
+                  <Camera className="w-3.5 h-3.5" />
+                  <span>+ UPLOAD GEOTAGGED REPORT</span>
+                </button>
+              </div>
+
+            </div>
+
+          </div>
         </main>
       )}
 
-      {/* ========================================================================= */}
-      {/* 4. BOTTOM PERSISTENT FOOTER BAR                                           */}
-      {/* ========================================================================= */}
-      <footer className="fixed bottom-0 left-0 right-0 h-7 bg-slate-950 border-t border-slate-800 px-4 flex items-center justify-between text-[10px] font-mono z-40">
-        
-        {/* Left: System Health Indicators */}
-        <div className="flex items-center gap-4 text-slate-400">
-          <div className="flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-            <span>PINN SOLVER: <strong className="text-slate-200">OPERATIONAL (38ms)</strong></span>
+      {/* ================================================================= */}
+      {/* FOOTER                                                             */}
+      {/* ================================================================= */}
+      <footer className={s.footer}>
+        <div className={s.footerLeft}>
+          <div className={s.footerIndicator}>
+            <span className={`${s.dotSm} ${s.dotGreen}`} />
+            <span>PINN SOLVER: <strong className={s.textWhite}>OPERATIONAL (38ms)</strong></span>
           </div>
-          <span className="text-slate-700">|</span>
-          <div className="flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
-            <span>SAR COHERENCE: <strong className="text-slate-200">98.2%</strong></span>
+          <span className={s.footerDivider}>|</span>
+          <div className={s.footerIndicator}>
+            <span className={`${s.dotSm} ${s.dotCyan}`} />
+            <span>SAR COHERENCE: <strong className={s.textWhite}>98.2%</strong></span>
           </div>
-          <span className="text-slate-700 hidden sm:inline">|</span>
-          <div className="hidden sm:flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-            <span>VOELLMY-SALM: <strong className="text-slate-200">CALIBRATED</strong></span>
+          <span className={s.footerDivider}>|</span>
+          <div className={s.footerIndicator}>
+            <span className={`${s.dotSm} ${s.dotGreen}`} />
+            <span>VOELLMY-SALM: <strong className={s.textWhite}>CALIBRATED</strong></span>
           </div>
         </div>
-
-        {/* Right: Offline / Low-bandwidth network status */}
-        <div className="flex items-center gap-2 text-slate-400">
-          <div className="flex items-center gap-1 text-emerald-400 font-bold">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+        <div className={s.footerRight}>
+          <div className={s.footerIndicator} style={{ color: 'var(--emerald-400)', fontWeight: 600 }}>
+            <span className={`${s.dotSm} ${s.dotGreen}`} />
             <span>LOW NETWORK ADAPTIVE: ONLINE</span>
           </div>
         </div>
-
       </footer>
 
       {/* Snap & Verify Modal */}
